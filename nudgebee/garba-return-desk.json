@@ -1,0 +1,45 @@
+{
+  "name": "garba-return-desk",
+  "description": "Runs one return case: validate, route (approve / hold / reject), call back into the app, notify. Risk is decided by the app, not here.",
+  "definition": {
+    "version": "v1",
+    "timeout": "5m",
+    "inputs": [],
+    "output": {},
+    "triggers": [
+      { "type": "webhook", "params": { "integration_name": "garba" } }
+    ],
+    "tasks": [
+      { "id": "get_case_id", "type": "data.transform",
+        "params": { "input": "{{ Inputs.webhook_payload }}", "inputType": "json", "expression": "$string(case_id)", "outputType": "raw", "scriptType": "jsonata" } },
+      { "id": "get_api_base", "type": "data.transform",
+        "params": { "input": "{{ Inputs.webhook_payload }}", "inputType": "json", "expression": "api_base", "outputType": "raw", "scriptType": "jsonata" } },
+      { "id": "validate_case", "type": "integrations.http", "depends_on": ["get_case_id", "get_api_base"],
+        "params": { "url": "{{ Tasks['get_api_base'].output.data }}/api/workflow/cases/{{ Tasks['get_case_id'].output.data }}/validate",
+                    "method": "GET", "auth_type": "bearer", "bearer_token": "{{ Secrets.garba_token }}", "timeout": "30s" } },
+      { "id": "route", "type": "core.switch", "depends_on": ["validate_case"],
+        "params": { "expression": "{{ Tasks['validate_case'].output.body.decision }}",
+                    "cases": [ { "value": "approve", "next": "issue_refund" },
+                               { "value": "hold", "next": "hold_case" },
+                               { "value": "reject", "next": "reject_case" } ],
+                    "default_next": "invalid_case" } },
+      { "id": "issue_refund", "type": "integrations.http", "depends_on": ["route"],
+        "params": { "url": "{{ Tasks['get_api_base'].output.data }}/api/workflow/cases/{{ Tasks['get_case_id'].output.data }}/refund",
+                    "method": "POST", "auth_type": "bearer", "bearer_token": "{{ Secrets.garba_token }}", "timeout": "30s" } },
+      { "id": "notify_approved", "type": "core.print", "depends_on": ["issue_refund"],
+        "params": { "message": "Case {{ Tasks['get_case_id'].output.data }}: auto-approved. App says: {{ Tasks['issue_refund'].output.body }}" } },
+      { "id": "hold_case", "type": "integrations.http", "depends_on": ["route"],
+        "params": { "url": "{{ Tasks['get_api_base'].output.data }}/api/workflow/cases/{{ Tasks['get_case_id'].output.data }}/hold",
+                    "method": "POST", "auth_type": "bearer", "bearer_token": "{{ Secrets.garba_token }}", "timeout": "30s" } },
+      { "id": "notify_held", "type": "core.print", "depends_on": ["hold_case"],
+        "params": { "message": "Case {{ Tasks['get_case_id'].output.data }}: HELD for the owner. App says: {{ Tasks['hold_case'].output.body }}" } },
+      { "id": "reject_case", "type": "integrations.http", "depends_on": ["route"],
+        "params": { "url": "{{ Tasks['get_api_base'].output.data }}/api/workflow/cases/{{ Tasks['get_case_id'].output.data }}/reject",
+                    "method": "POST", "auth_type": "bearer", "bearer_token": "{{ Secrets.garba_token }}", "timeout": "30s" } },
+      { "id": "notify_rejected", "type": "core.print", "depends_on": ["reject_case"],
+        "params": { "message": "Case {{ Tasks['get_case_id'].output.data }}: REJECTED. App says: {{ Tasks['reject_case'].output.body }}" } },
+      { "id": "invalid_case", "type": "core.print", "depends_on": ["route"],
+        "params": { "message": "Case {{ Tasks['get_case_id'].output.data }}: invalid or already processed, nothing done. {{ Tasks['validate_case'].output.body }}" } }
+    ]
+  }
+}

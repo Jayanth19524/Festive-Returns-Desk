@@ -1,0 +1,9 @@
+_reuse/
+HANDOFF.md
+.env
+.venv/
+__pycache__/
+*.db
+node_modules/
+dist/
+.DS_Store

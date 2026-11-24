@@ -1,0 +1,49 @@
+# Self-hosted Flagsmith for Garba Returns Desk (UI + API on http://localhost:8000).
+# If a Flagsmith is ALREADY running on port 8000, do NOT start this one: reuse it and create the flags there.
+# Adapted from the official file: https://github.com/Flagsmith/flagsmith/blob/main/docker-compose.yml
+# Simplified: no task processor (TASK_RUN_METHOD=SYNCHRONOUSLY). Secrets are local-demo values only.
+name: garba-returns-desk
+
+x-flagsmith-env: &flagsmith-env
+  DATABASE_URL: postgresql://postgres:password@postgres:5432/flagsmith
+  USE_POSTGRES_FOR_ANALYTICS: 'true'
+  ENVIRONMENT: development
+  DJANGO_ALLOWED_HOSTS: '*'
+  FLAGSMITH_DOMAIN: localhost:8000
+  DJANGO_SECRET_KEY: local-demo-secret
+  TASK_RUN_METHOD: SYNCHRONOUSLY
+
+volumes:
+  pgdata:
+
+services:
+  postgres:
+    image: postgres:15.5-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: flagsmith
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -d flagsmith -U postgres']
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 20s
+
+  migrate-db:
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    command: [migrate]
+    environment: *flagsmith-env
+    healthcheck: {disable: true}
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  flagsmith:
+    image: docker.flagsmith.com/flagsmith/flagsmith:latest
+    restart: unless-stopped
+    command: [serve]
+    environment: *flagsmith-env
+    ports: ["8000:8000"]
+    depends_on:
+      migrate-db: {condition: service_completed_successfully}
