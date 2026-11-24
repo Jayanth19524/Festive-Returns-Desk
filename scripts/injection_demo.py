@@ -34,7 +34,7 @@ print("   why:", "; ".join(case["reasons"]))
 cid = case["id"]
 print("3) Attacker calls the workflow callback without the token :", call(f"/api/workflow/cases/{cid}/refund", {}, token=False))
 print("4) Same, with a (stolen) token, asking for a refund    :", call(f"/api/workflow/cases/{cid}/refund", {}, token=True))
-print("5) Owner-approve path without a signed approval         :", call(f"/api/cases/{cid}/owner/approve", {}))
+print("5) Owner-approve (unsigned: no Touch ID signature)         :", call(f"/api/cases/{cid}/owner/approve", {}))
 final = call(f"/api/cases/{cid}")
 print(f"\nRESULT: refund issued? {final['refund'] is not None}   status={final['status']}")
 sys.exit(0 if final["refund"] is None else 1)

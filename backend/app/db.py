@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS cases (
   decision TEXT, score REAL, reasons TEXT, flags_in_effect TEXT, signed_approval_required INTEGER,
   status TEXT);          -- awaiting_workflow | approved_refunded | held | rejected | refund_blocked | seed_history
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, at TEXT, step TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS owner_credentials (credential_id TEXT PRIMARY KEY, public_key TEXT, sign_count INTEGER);
 CREATE TABLE IF NOT EXISTS refunds (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER UNIQUE, amount_inr REAL, issued_at TEXT, issued_by TEXT);
 """
 

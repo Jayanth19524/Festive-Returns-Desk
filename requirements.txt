@@ -4,3 +4,4 @@ python-multipart
 sarvamai==0.1.49
 python-dotenv
 flagsmith==6.7.0
+cryptography

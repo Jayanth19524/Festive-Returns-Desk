@@ -126,7 +126,7 @@ def panel() -> dict:
     return {"config": live["cfg"], "status": live["status"], "live": live["live"], "flags": live["flags"], "scenarios": rows}
 
 
-def owner_decide(cid: int, action: str) -> dict:
+def owner_decide(cid: int, action: str, signed: bool = False) -> dict:
     """Owner clicks Approve / Reject on a HELD case. Refunds above hold_above_inr need a signed (Touch ID) approval,
     which is NOT built yet (README: Phase 5 skipped), so those stay held and say why."""
     live = flags.load()
@@ -138,14 +138,14 @@ def owner_decide(cid: int, action: str) -> dict:
             c.execute("UPDATE cases SET status='rejected' WHERE id=?", (cid,))
             db.log_event(c, cid, "owner_rejected", "owner rejected the held case")
             return {"ok": True, "status": "rejected"}
-        if case["signed_approval_required"]:
-            db.log_event(c, cid, "owner_approve_blocked", "amount is above the hold limit: needs a signed Touch ID approval (not implemented); nothing refunded")
-            return {"ok": False, "error": "signed approval required (not implemented)"}
+        if case["signed_approval_required"] and not signed:
+            db.log_event(c, cid, "owner_approve_blocked", "amount is above the hold limit: needs a signed Touch ID approval ; nothing refunded")
+            return {"ok": False, "error": "signed approval required (Touch ID)"}
         if not live["cfg"]["refunds_enabled"]:
             db.log_event(c, cid, "owner_approve_blocked", "refunds are frozen")
             return {"ok": False, "error": "refunds frozen"}
         c.execute("INSERT INTO refunds (case_id,amount_inr,issued_at,issued_by) VALUES (?,?,?,?)",
-                  (cid, case["order"]["amount_inr"], db.now(), "owner"))
+                  (cid, case["order"]["amount_inr"], db.now(), "owner (Touch ID)" if signed else "owner"))
         c.execute("UPDATE cases SET status='approved_refunded' WHERE id=?", (cid,))
-        db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger, approved by owner (simulated payout)")
+        db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger, approved by owner{' with Touch ID' if signed else ''} (simulated payout)")
         return {"ok": True, "status": "approved_refunded"}

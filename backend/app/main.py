@@ -3,7 +3,7 @@ import base64, hmac, os
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from . import cases, db, flags, languages, sarvam_service as sv
+from . import cases, db, flags, languages, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
 app = FastAPI(title="Garba Returns Desk (SIMULATED data)")
@@ -131,3 +131,57 @@ def owner_action(cid: int, action: str):
     if action not in ("approve", "reject"):
         raise HTTPException(404, "unknown action")
     return cases.owner_decide(cid, action)
+
+
+# ---- Touch ID (WebAuthn) owner approval. Local only (tunnel guard blocks these paths from outside). ----
+class RegisterIn(BaseModel):
+    credential_id: str
+    client_data_json: str
+    public_key: str
+
+
+class ApproveIn(BaseModel):
+    credential_id: str
+    client_data_json: str
+    authenticator_data: str
+    signature: str
+
+
+@app.get("/api/webauthn/status")
+def webauthn_status():
+    return {"registered": webauthn_owner.has_credential(), "rp_id": webauthn_owner.RP_ID}
+
+
+@app.get("/api/webauthn/register-challenge")
+def webauthn_register_challenge():
+    return {"challenge": webauthn_owner.new_challenge("register"), "rp_id": webauthn_owner.RP_ID}
+
+
+@app.post("/api/webauthn/register")
+def webauthn_register(body: RegisterIn):
+    try:
+        webauthn_owner.register(body.credential_id, body.client_data_json, body.public_key)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"ok": True}
+
+
+@app.get("/api/cases/{cid}/approval-challenge")
+def approval_challenge(cid: int):
+    with db.conn() as c:
+        cred = c.execute("SELECT credential_id FROM owner_credentials").fetchone()
+    if not cred:
+        raise HTTPException(409, "no owner key registered yet")
+    return {"challenge": webauthn_owner.new_challenge(f"approve:{cid}"), "rp_id": webauthn_owner.RP_ID,
+            "credential_id": cred[0]}
+
+
+@app.post("/api/cases/{cid}/approve-signed")
+def owner_approve_signed(cid: int, body: ApproveIn):
+    try:
+        webauthn_owner.verify_approval(cid, body.credential_id, body.client_data_json, body.authenticator_data, body.signature)
+    except ValueError as e:
+        with db.conn() as c:
+            db.log_event(c, cid, "owner_approve_blocked", f"signed approval rejected: {e}")
+        raise HTTPException(403, f"signed approval rejected: {e}")
+    return cases.owner_decide(cid, "approve", signed=True)

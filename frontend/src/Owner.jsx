@@ -1,4 +1,5 @@
 import usePoll from "./usePoll.js";
+import { approveWithTouchId, registerOwnerKey } from "./webauthn.js";
 
 const act = (id, action) => fetch(`/api/cases/${id}/owner/${action}`, { method: "POST" }).then((r) => r.json()).then((j) => !j.ok && alert(j.error));
 
@@ -9,6 +10,8 @@ const inr = (n) => "₹" + Number(n).toLocaleString("en-IN");
 export default function Owner() {
   const { data: panel, error } = usePoll("/api/panel", 2000);
   const { data: cases } = usePoll("/api/cases", 2000);
+  const { data: wa } = usePoll("/api/webauthn/status", 4000);
+  const touch = (id) => approveWithTouchId(id).catch((e) => alert("Touch ID approval failed: " + e.message));
   if (!panel) return <p>{error ? `Cannot reach the API: ${error}` : "Loading…"}</p>;
   const c = panel.config;
   return (
@@ -30,6 +33,13 @@ export default function Owner() {
           </ul>
         </div>
       </section>
+
+      {wa && !wa.registered && (
+        <div className="rounded border border-amber-500 bg-amber-50 p-3 text-sm">
+          Large refunds need your Touch ID. <button className="ml-2 rounded bg-stone-900 px-3 py-1 text-white"
+            onClick={() => registerOwnerKey().catch((e) => alert("Registration failed: " + e.message))}>Register Touch ID (one time)</button>
+        </div>
+      )}
 
       {/* Live decision panel: change a value in Flagsmith and watch these flip within seconds */}
       <section>
@@ -62,9 +72,11 @@ export default function Owner() {
               <p className="mt-1 text-xs text-stone-500">Flagsmith values at that moment: {JSON.stringify(k.flags_in_effect?.cfg)}</p>
               {k.status === "held" && (
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => act(k.id, "approve")} className="rounded bg-green-700 px-3 py-1 text-white">Approve refund</button>
+                  {k.signed_approval_required
+                    ? <button onClick={() => touch(k.id)} className="rounded bg-green-700 px-3 py-1 text-white">🔒 Approve with Touch ID</button>
+                    : <button onClick={() => act(k.id, "approve")} className="rounded bg-green-700 px-3 py-1 text-white">Approve refund</button>}
                   <button onClick={() => act(k.id, "reject")} className="rounded bg-red-700 px-3 py-1 text-white">Reject</button>
-                  {k.signed_approval_required ? <span className="self-center text-xs text-amber-800">Above hold limit: needs signed approval (not built yet)</span> : null}
+                  {k.signed_approval_required ? <span className="self-center text-xs text-amber-800">Above the hold limit: only a Touch ID signature can release this</span> : null}
                 </div>
               )}
               <ol className="mt-2 list-decimal pl-5 text-xs text-stone-600">

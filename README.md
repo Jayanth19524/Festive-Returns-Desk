@@ -15,7 +15,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Owner screen and customer screen (React) | Works |
 | NudgeBee workflow | Workflow file, callback API and guard are built and the callback side is tested. **The NudgeBee side needs ~10 UI steps by the owner (`docs/NUDGEBEE.md`); it had not been run when this was written.** |
-| Touch ID (WebAuthn) approval for large refunds | **Not built** (see Limitations). The prompt-injection demo works without it |
+| Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). **A real Touch ID prompt has not been exercised yet**: do the one-time registration on the owner screen and try it |
 
 ## Sponsors and their roles
 | Sponsor | Role in this app |
@@ -42,7 +42,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
    5. callback re-checks the stored decision AND the live freeze flag, then writes the refund ledger
    6. Bulbul v4 Flash speaks the decision back
 ```
-Files: `backend/app/` (`risk.py` rule, `flags.py` Flagsmith, `sarvam_service.py`, `cases.py` lifecycle, `db.py` schema + seed, `nudgebee.py` webhook client, `main.py` routes), `frontend/src/` (`Owner.jsx`, `Customer.jsx`), `nudgebee/garba-return-desk.json`, `scripts/`.
+Files: `backend/app/` (`risk.py` rule, `flags.py` Flagsmith, `webauthn_owner.py` Touch ID check, `sarvam_service.py`, `cases.py` lifecycle, `db.py` schema + seed, `nudgebee.py` webhook client, `main.py` routes), `frontend/src/` (`Owner.jsx`, `Customer.jsx`), `nudgebee/garba-return-desk.json`, `scripts/`.
 
 ## Setup
 Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
@@ -52,14 +52,14 @@ Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
 4. Backend: `python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/uvicorn backend.app.main:app --port 8200`
 5. Frontend: `cd frontend && npm install && npm run dev` then open http://localhost:5174 (owner) and http://localhost:5174/#/customer. `localhost` is required for the microphone.
 6. **NudgeBee**: follow `docs/NUDGEBEE.md` (self-hosted Community, integration, secret, import `nudgebee/garba-return-desk.json`, public tunnel). Then `bash scripts/fire_webhook.sh`.
-7. Check services: `python3 scripts/check_services.py`. Tests for the rule: `.venv/bin/python -m unittest backend.tests_risk -v`.
+7. Check services: `python3 scripts/check_services.py`. Tests: `.venv/bin/python -m unittest backend.tests_risk backend.tests_webauthn -v`.
 
 Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_refund_limit_inr 1000`, `python3 scripts/set_flag.py refunds_enabled off`).
 
 ## Limitations (honest)
 - **Voice accuracy is only lightly tested.** The three test phrases (Gujarati, Hindi, Kannada; `scripts/test_intake.py`) used synthetic Bulbul audio, which is cleaner than real phone audio. All 9 extracted fields were right, but that is 3 samples. Spoken order IDs over noise are the weak spot; unknown IDs are rejected by the rule, not guessed.
 - The LLM can be talked into **extracting** a field wrongly (e.g. "unworn" for a worn item). That can only lower the risk score for a case whose amount is still capped by `auto_refund_limit_inr`; it cannot lift the cap, skip the freeze switch, or approve above the limit. Photos/evidence are not implemented.
-- **Touch ID approval is not built.** Cases above `hold_above_inr` are held and the owner Approve button refuses them ("signed approval required"). A WebAuthn server check needs a crypto dependency (`cryptography` or `py_webauthn`) that is outside the agreed stack, so it was left for the owner's decision. The prompt-injection demo (`scripts/injection_demo.py`) works today: injected text never reaches the decision rule, and no path issues the refund.
+- **Touch ID (WebAuthn):** verified server-side with the `cryptography` package (challenge, origin, rpIdHash, user-verified flag, ES256 signature, counter). Attestation is not checked and the first key registered from the local machine is trusted. Challenges live in memory, so a server restart invalidates pending ones. The relying-party id is `localhost`, so it works on `localhost` only (no tunnel needed; do not use the tunnel URL for the owner screen). Real-hardware behaviour is untested by the author's tooling.
 - Spoken replies in Gujarati/Hindi/Kannada are short machine-written sentences. A native speaker should review them.
 - The refund ledger is a database table; nothing is paid out. Flagsmith's freeze is flipped in its dashboard (the owner screen shows it and links there).
 - NudgeBee: the brief's `Inputs.webhook_json` was empty on the tested install; we parse `Inputs.webhook_payload` with a JSONata `data.transform` instead. Its HTTP task refuses private IPs, so a public tunnel (guarded: only `/api/workflow/*` with a Bearer token) is required.
