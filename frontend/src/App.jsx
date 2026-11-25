@@ -5,6 +5,7 @@ import Desk from "./pages/Desk.jsx";
 import Insights from "./pages/Insights.jsx";
 import Catalogue from "./pages/Catalogue.jsx";
 import Live from "./pages/Live.jsx";
+import CaseFile from "./pages/CaseFile.jsx";
 import Architecture from "./pages/Architecture.jsx";
 import Customer from "./pages/Customer.jsx";
 import Shop, { MyOrders, Placed, StoreShell } from "./pages/Shop.jsx";
@@ -34,6 +35,7 @@ export default function App() {
   if (route === "shop") {
     return arg === "orders" ? <MyOrders /> : arg === "placed" ? <Placed id={arg2} /> : <Shop sku={arg} />;
   }
+  if (route === "file") return <div className="min-h-screen bg-ivory p-4 print:bg-white"><CaseFile id={arg} /></div>;
   if (route === "customer") return <StoreShell season={false}><Customer orderId={arg} /></StoreShell>;
   return (
     <ShopContext.Provider value={shop}>

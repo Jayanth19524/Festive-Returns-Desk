@@ -50,4 +50,18 @@ class T(unittest.TestCase):
         self.assertEqual(numbers_in("Loss is 22,163 over 33 returns") - allowed, set())          # figures from our data pass
         self.assertEqual(numbers_in("₹17,818 and 40%"), {"17818", "40"})
 
+
+    def test_late_rejection_is_strong_because_it_rests_on_checkable_facts(self):
+        e = intel.evidence_level({"reasons": ["Delivered 40 days ago; window is 15 days"], "transcript": "x"})
+        self.assertEqual(e["level"], "strong"); self.assertIsNone(e["goodwill"])
+
+    def test_score_based_rejection_without_evidence_is_weak_and_gets_a_goodwill_suggestion(self):
+        e = intel.evidence_level({"reasons": ["Risk score 70 is at or over 70"], "transcript": "(typed return)", "claimed_condition": "unworn", "reason_category": "wrong_size"})
+        self.assertEqual(e["level"], "weak"); self.assertIn("exchange", e["goodwill"])
+
+    def test_admission_plus_photo_support_makes_it_strong(self):
+        e = intel.evidence_level({"reasons": ["Risk score 70 is at or over 70"], "transcript": "I wore it", "claimed_condition": "worn", "reason_category": "worn_once",
+                                  "photo_path": "a.jpg", "photo_check": {"status": "ok", "signs_of_wear": "clear"}})
+        self.assertEqual(e["level"], "strong")
+
 if __name__ == "__main__": unittest.main()

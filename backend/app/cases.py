@@ -80,6 +80,8 @@ def get(c, cid):
     d["events"] = [dict(e) for e in c.execute("SELECT at,step,detail FROM events WHERE case_id=? ORDER BY id", (cid,))]
     o = c.execute("SELECT * FROM orders WHERE id=?", (d["order_id"],)).fetchone()
     d["order"] = dict(o) if o else None
+    d["complaints"] = [dict(x) for x in c.execute("SELECT * FROM complaints WHERE case_id=? ORDER BY id", (cid,))]
+    d["evidence"] = intel.evidence_level(d) if d["decision"] == "reject" or d["status"] == "rejected" else None
     d["disposition"] = intel.disposition(d["reason_category"] or "other", d["claimed_condition"] or "unknown", d.get("photo_check"))
     d["refund"] = dict(x) if (x := c.execute("SELECT * FROM refunds WHERE case_id=?", (cid,)).fetchone()) else None
     return d
@@ -233,3 +235,52 @@ def steps(cid: int) -> dict | None:
     if tt:
         out.append({"key": "tts", "who": "sarvam", "title": "Spoken reply · Bulbul v4 Flash", "ms": tt["ms"], "detail": tt["detail"]})
     return {"case_id": cid, "order_id": case["order_id"], "decision": case["decision"], "status": case["status"], "steps": out}
+
+
+def case_file(cid: int) -> dict | None:
+    """Everything we can show about ONE case, in the order it happened: what the customer said, what the rule decided and why,
+    the Flagsmith values in force at that moment, the photo and what the model saw, every workflow step, and any complaint."""
+    with db.conn() as c:
+        d = get(c, cid)
+    if not d or d["status"] in ("seed_history", "history"):
+        return None
+    return {"case_id": cid, "generated_at": db.now(), "order": d["order"], "customer_id": d["customer_id"], "language": d["language"],
+            "customer_statement": d["transcript"], "understood_as": {"reason": d["reason_category"], "condition": d["claimed_condition"]},
+            "decision": d["decision"], "status": d["status"], "risk_score": d["score"], "reasons": d["reasons"],
+            "how_it_was_decided": {"by": "a fixed plain-code rule (risk.py), not by an AI model", "ai_role": "extracted the order, reason and condition from what was said, and described the photo; it cannot approve or reject",
+                                   "return_window_days": risk.RETURN_WINDOW_DAYS, "limits_in_force": (d["flags_in_effect"] or {}).get("cfg"), "limits_source": (d["flags_in_effect"] or {}).get("source")},
+            "photo": {"on_file": bool(d["photo_path"]), "url": f"/api/cases/{cid}/photo" if d["photo_path"] else None, "check": d["photo_check"]},
+            "evidence": d["evidence"], "timeline": d["events"], "refund": d["refund"], "complaints": d["complaints"], "disposition": d["disposition"]}
+
+
+def add_complaint(cid: int, channel: str, summary: str) -> dict:
+    with db.conn() as c:
+        if not c.execute("SELECT 1 FROM cases WHERE id=? AND status NOT IN ('seed_history','history')", (cid,)).fetchone():
+            return {"ok": False, "error": "no such case"}
+        cur = c.execute("INSERT INTO complaints (case_id, filed_at, channel, summary, status) VALUES (?,?,?,?, 'open')", (cid, db.now(), channel[:40], summary[:600]))
+        db.log_event(c, cid, "complaint_filed", f"{channel}: {summary[:160]}")
+        return {"ok": True, "id": cur.lastrowid}
+
+
+def resolve_complaint(comp_id: int, outcome: str, note: str) -> dict:
+    """outcome: upheld (rejection stands), goodwill (a gesture, no refund of the full price), reversed (refund issued now)."""
+    if outcome not in ("upheld", "goodwill", "reversed"):
+        return {"ok": False, "error": "unknown outcome"}
+    with db.conn() as c:
+        comp = c.execute("SELECT * FROM complaints WHERE id=? AND status='open'", (comp_id,)).fetchone()
+        if not comp:
+            return {"ok": False, "error": "no open complaint with that id"}
+        cid = comp["case_id"]
+        if outcome == "reversed":
+            live = flags.load()
+            if not live["cfg"]["refunds_enabled"]:
+                return {"ok": False, "error": "refunds are frozen"}
+            case = get(c, cid)
+            if case["refund"]:
+                return {"ok": False, "error": "already refunded"}
+            c.execute("INSERT INTO refunds (case_id,amount_inr,issued_at,issued_by) VALUES (?,?,?,?)", (cid, case["order"]["amount_inr"], db.now(), "owner (complaint resolution)"))
+            c.execute("UPDATE cases SET status='approved_refunded' WHERE id=?", (cid,))
+            db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in the ledger after a complaint, approved by owner (recorded in the ledger, not paid out)")
+        c.execute("UPDATE complaints SET status='resolved', outcome=?, note=?, resolved_at=? WHERE id=?", (outcome, note[:400], db.now(), comp_id))
+        db.log_event(c, cid, "complaint_resolved", f"{outcome}: {note[:160]}")
+        return {"ok": True}

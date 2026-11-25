@@ -48,6 +48,7 @@ export default function Live() {
         <div><h1 className="display text-3xl font-semibold text-plum">Live monitor</h1>
           <p className="text-muted">Returns arriving right now, how fast, and what to switch on or off when it gets busy.</p></div>
         <div className="flex flex-wrap items-center gap-2">
+          {!sim.running && sim.filed > 0 && <Button onClick={async () => { await post("/api/demo/stream/clear"); setApplied({}); setNote("Simulated returns cleared: the intelligence pages are back to the base data."); }}>Clear simulated returns</Button>}
           {sim.running ? <Button kind="bad" onClick={() => post("/api/demo/stream/stop")}>■ Stop</Button>
             : <Button kind="primary" onClick={() => { setApplied({}); post("/api/demo/stream/start"); }}>▶ Start festive-rush simulation</Button>}
           <a href="http://localhost:3000/automation#executions" target="_blank" rel="noreferrer" className="rounded-xl border border-line bg-paper px-3.5 py-2 text-sm font-semibold hover:bg-ivory">Open NudgeBee runs ↗</a>

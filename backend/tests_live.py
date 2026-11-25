@@ -49,4 +49,26 @@ class T(unittest.TestCase):
         self._file(live.SURGE_AT, "wrong_size", "unworn")
         self.assertTrue(any(x["flag"] == "refunds_enabled" for x in live.suggest()))
 
+
+    def test_complaint_flow_and_reversal_respects_the_freeze(self):
+        self._file(1, "worn_once", "worn")
+        with db.conn() as c:
+            cid = c.execute("SELECT id FROM cases WHERE status NOT IN ('seed_history','history') ORDER BY id DESC LIMIT 1").fetchone()[0]
+        r = cases.add_complaint(cid, "consumer helpline", "wants a refund"); self.assertTrue(r["ok"])
+        self.assertEqual(len(cases.case_file(cid)["complaints"]), 1)
+        flags.load = lambda: {"cfg": {**CFG, "refunds_enabled": False}, "flags": {}, "status": "test", "live": True}
+        self.assertFalse(cases.resolve_complaint(r["id"], "reversed", "x")["ok"])          # frozen: no refund can be issued
+        flags.load = lambda: {"cfg": dict(CFG), "flags": {}, "status": "test", "live": True}
+        self.assertTrue(cases.resolve_complaint(r["id"], "goodwill", "store credit")["ok"])
+        self.assertFalse(cases.resolve_complaint(r["id"], "goodwill", "again")["ok"])      # already resolved
+
+    def test_clear_sim_removes_only_simulated_returns(self):
+        self._file(2, "wrong_size", "unworn")
+        with db.conn() as c:
+            ids = [r[0] for r in c.execute("SELECT id FROM cases WHERE status NOT IN ('seed_history','history')")]
+            c.execute("UPDATE cases SET origin='sim' WHERE id=?", (ids[0],))
+        self.assertEqual(live.clear_sim(), 1)
+        with db.conn() as c:
+            self.assertEqual(c.execute("SELECT COUNT(*) FROM cases WHERE status NOT IN ('seed_history','history')").fetchone()[0], 1)
+
 if __name__ == "__main__": unittest.main()

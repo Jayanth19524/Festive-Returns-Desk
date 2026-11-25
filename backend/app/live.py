@@ -141,7 +141,26 @@ def _free_orders(c, repeat: bool):
         "AND o.id NOT IN (SELECT order_id FROM cases WHERE status!='seed_history') ORDER BY o.id")]
 
 
+def clear_sim() -> int:
+    """Remove every return the simulator filed (and its events, refunds and complaints), so the next run, and the intelligence pages, start clean."""
+    with db.conn() as c:
+        ids = [r[0] for r in c.execute("SELECT id FROM cases WHERE origin='sim'")]
+        for i in ids:
+            for t in ("events", "refunds", "complaints"):
+                c.execute(f"DELETE FROM {t} WHERE case_id=?", (i,))
+            c.execute("DELETE FROM cases WHERE id=?", (i,))
+    SIM.update(running=False, phase="idle", filed=0, total=0, message="")
+    return len(ids)
+
+
 def _file(order_id, reason, voice_lang=None):
+    case = _file_inner(order_id, reason, voice_lang)
+    with db.conn() as c:
+        c.execute("UPDATE cases SET origin='sim' WHERE id=?", (case["id"],))
+    return case
+
+
+def _file_inner(order_id, reason, voice_lang=None):
     fields = {"order_id": order_id, "reason_category": reason, "claimed_condition": COND.get(reason, "unworn")}
     if voice_lang:   # the real voice pipeline: speak -> Saaras -> 105B (a synthetic customer voice, so this is an upper bound on accuracy)
         try:
@@ -196,6 +215,7 @@ def start(seed: int = 7) -> dict:
     if SIM["running"]:
         return {"ok": False, "error": "already running"}
     _stop.clear()
+    clear_sim()   # a new run never carries the previous one
     threading.Thread(target=_run, args=(seed,), daemon=True).start()
     return {"ok": True}
 

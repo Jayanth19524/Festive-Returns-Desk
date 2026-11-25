@@ -1,4 +1,5 @@
 import { useState } from "react";
+const CH = ["consumer helpline", "consumer forum", "marketplace", "social media", "phone or WhatsApp", "other"];
 import usePoll from "../usePoll.js";
 import { Button, Card, DecisionBadge, SectionTitle, StatusBadge, WhoTag, inr } from "../ui.jsx";
 import { approveWithTouchId, registerOwnerKey } from "../webauthn.js";
@@ -14,6 +15,8 @@ export default function Desk({ selected }) {
   const { data: wa } = usePoll("/api/webauthn/status", 4000);
   const [filter, setFilter] = useState("held");
   const [msg, setMsg] = useState("");
+  const [cform, setCform] = useState({ channel: CH[0], summary: "" });
+  const [draft, setDraft] = useState(null);
   if (!cases) return <p className="text-muted">Loading…</p>;
 
   const list = [...cases].filter((k) => filter === "all" || k.status === filter)
@@ -105,6 +108,34 @@ export default function Desk({ selected }) {
                   <p className="text-xs font-semibold uppercase tracking-wide text-warn">What to do with the item</p>
                   <p className="mt-1 font-semibold text-plum">{cur.disposition.label} <span className="num font-normal text-muted">· about {cur.disposition.recovery_pct}% of the price recoverable</span></p>
                   <ol className="mt-1 list-decimal pl-5 text-muted">{cur.disposition.steps.map((x) => <li key={x}>{x}</li>)}</ol>
+                </div>
+              )}
+              {cur.evidence && (
+                <div className={`mt-4 rounded-xl border p-3 text-sm ${cur.evidence.level === "strong" ? "border-ok/40 bg-ok-bg" : cur.evidence.level === "medium" ? "border-warn/40 bg-warn-bg" : "border-bad/40 bg-bad-bg"}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">If this customer complains: evidence is <b className="text-ink">{cur.evidence.level}</b></p>
+                  <ul className="mt-1 list-disc pl-5">{cur.evidence.why.map((w) => <li key={w}>{w}</li>)}</ul>
+                  {cur.evidence.goodwill && <p className="mt-1 font-semibold text-plum">Suggested: {cur.evidence.goodwill}.</p>}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a href={`#/file/${cur.id}`} className="rounded-xl bg-plum px-3 py-1.5 text-xs font-semibold text-white">Open printable case file</a>
+                    <Button className="!py-1.5 text-xs" onClick={async () => { setDraft(null); const r = await fetch(`/api/cases/${cur.id}/reply-draft`, { method: "POST" }); const j = await r.json(); setDraft(r.ok ? j : { error: j.detail }); }}>Draft a reply (customer's language)</Button>
+                  </div>
+                  {draft && (draft.error ? <p className="mt-2 text-bad">{draft.error}</p> : <p className="mt-2 rounded-lg bg-paper p-2"><b>{draft.language}:</b> {draft.text}<span className="mt-1 block text-xs text-muted">{draft.note}</span></p>)}
+                </div>
+              )}
+              {cur.decision !== "approve" && (
+                <div className="mt-4 rounded-xl border border-line p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Complaints</p>
+                  {cur.complaints.map((k) => (
+                    <div key={k.id} className="mt-1 flex flex-wrap items-center gap-2"><span className="rounded-md bg-gold-soft px-2 py-0.5 text-xs font-semibold text-warn">{k.channel}</span><span className="min-w-40 flex-1">{k.summary}</span>
+                      {k.status === "open" ? ["upheld", "goodwill", "reversed"].map((o) => <Button key={o} className="!px-2 !py-1 text-xs" onClick={() => run(async () => { const r = await fetch(`/api/complaints/${k.id}/resolve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ outcome: o, note: o === "upheld" ? "Rejection stands" : o === "goodwill" ? "Goodwill gesture agreed" : "Refund issued after complaint" }) }); return r.ok ? {} : { ok: false, error: (await r.json()).detail }; })}>{o === "upheld" ? "Rejection stands" : o === "goodwill" ? "Goodwill" : "Refund now"}</Button>)
+                        : <span className="text-xs font-semibold text-ok">{k.outcome}</span>}
+                    </div>
+                  ))}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <select value={cform.channel} onChange={(e) => setCform({ ...cform, channel: e.target.value })} className="rounded-lg border border-line bg-paper px-2 py-1 text-xs">{CH.map((c) => <option key={c}>{c}</option>)}</select>
+                    <input value={cform.summary} onChange={(e) => setCform({ ...cform, summary: e.target.value })} placeholder="What did the customer say?" className="min-w-40 flex-1 rounded-lg border border-line bg-paper px-2 py-1 text-xs" />
+                    <Button className="!px-2 !py-1 text-xs" onClick={() => run(async () => { const r = await fetch(`/api/cases/${cur.id}/complaint`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cform) }); setCform({ ...cform, summary: "" }); return r.ok ? {} : { ok: false, error: "could not record" }; })}>Record a complaint</Button>
+                  </div>
                 </div>
               )}
               {cur.refund && <p className="mt-4 rounded-xl bg-ok-bg p-3 text-sm font-semibold text-ok">Refunded {inr(cur.refund.amount_inr)} · {cur.refund.issued_by} (recorded in the ledger, not paid out)</p>}

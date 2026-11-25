@@ -136,7 +136,7 @@ def one_case(cid: int):
 @app.post("/api/demo/reset")
 def reset():
     live.stop(); live.SIM.update(running=False, phase="idle", filed=0, total=0, message="")
-    db.reset()
+    db.reset()   # also removes the simulator's returns
     return {"ok": True}
 
 
@@ -435,6 +435,7 @@ def insights():
         irows.append({"reason": r["r"] or "other", "condition": r["cd"] or "unknown", "decision": r["dec"], "amount": r["amt"], "customer_id": r["cu"],
                       "season": season_of.get(sku), "sku": sku, "days_ago": (now - datetime.fromisoformat(r["at"])).total_seconds() / 86400})
     out["intel"] = intel.analyse(irows, listings, total_orders)
+    out["rejections"] = rejections_view()
     return out
 
 
@@ -659,6 +660,12 @@ def stream_start():
     return live.start()
 
 
+@app.post("/api/demo/stream/clear", dependencies=[Depends(demo_only)])
+def stream_clear():
+    live.stop()
+    return {"ok": True, "removed": live.clear_sim()}
+
+
 @app.post("/api/demo/stream/stop", dependencies=[Depends(demo_only)])
 def stream_stop():
     return live.stop()
@@ -694,3 +701,83 @@ def live_brief():
         return {"text": None, "error": str(e)[:160]}
     _brief_cache[key] = out
     return out
+
+
+# ---- Complaint defence: what a rejected return looks like if the customer complains ----
+def rejections_view() -> dict:
+    with db.conn() as c:
+        ids = [r[0] for r in c.execute("SELECT id FROM cases WHERE decision='reject' AND status NOT IN ('seed_history','history') ORDER BY id DESC")]
+        rows = [cases.get(c, i) for i in ids]
+        comps = [dict(r) for r in c.execute("SELECT * FROM complaints ORDER BY id DESC")]
+    by = {"strong": 0, "medium": 0, "weak": 0}
+    for r in rows:
+        by[r["evidence"]["level"]] += 1
+    exposed = [{"case_id": r["id"], "order_id": r["order_id"], "item": r["order"]["item"] if r["order"] else None, "amount_inr": r["order"]["amount_inr"] if r["order"] else 0,
+                "level": r["evidence"]["level"], "why": r["evidence"]["why"], "goodwill": r["evidence"]["goodwill"], "reasons": r["reasons"][:2]}
+               for r in rows if r["evidence"]["level"] != "strong"]
+    return {"rejected": len(rows), "by_evidence": by, "exposed": exposed[:6], "exposed_value_inr": round(sum(x["amount_inr"] for x in exposed)),
+            "complaints": {"total": len(comps), "open": sum(1 for x in comps if x["status"] == "open"),
+                           "reversed": sum(1 for x in comps if x["outcome"] == "reversed"), "upheld": sum(1 for x in comps if x["outcome"] == "upheld"),
+                           "goodwill": sum(1 for x in comps if x["outcome"] == "goodwill"), "recent": comps[:5]},
+            "note": "Evidence strength is a checklist of what we can show, not a legal opinion."}
+
+
+class ComplaintIn(BaseModel):
+    channel: str = "other"
+    summary: str = ""
+
+
+class ResolveIn(BaseModel):
+    outcome: str
+    note: str = ""
+
+
+@app.get("/api/cases/{cid}/file")
+def case_file(cid: int):
+    """The printable evidence file for one case (owner screens only)."""
+    f = cases.case_file(cid)
+    if not f:
+        raise HTTPException(404, "no such case")
+    return f
+
+
+@app.post("/api/cases/{cid}/complaint")
+def file_complaint(cid: int, body: ComplaintIn):
+    r = cases.add_complaint(cid, body.channel, body.summary or "(no details)")
+    if not r["ok"]:
+        raise HTTPException(404, r["error"])
+    return r
+
+
+@app.post("/api/complaints/{comp_id}/resolve")
+def resolve(comp_id: int, body: ResolveIn):
+    r = cases.resolve_complaint(comp_id, body.outcome, body.note)
+    if not r["ok"]:
+        raise HTTPException(400, r["error"])
+    return r
+
+
+@app.post("/api/cases/{cid}/reply-draft")
+def reply_draft(cid: int):
+    """A short, polite reply to the customer in THEIR language, written by Sarvam 105B from the facts of the case.
+    Facts only: it may not invent figures, offers or promises (numbers outside the facts are rejected)."""
+    f = cases.case_file(cid)
+    if not f:
+        raise HTTPException(404, "no such case")
+    lang = languages.get(f["language"])["name"] if f["language"] in languages.LANGUAGES else "English"
+    plain = {"reject": "we could not accept the return", "hold": "the return is waiting for the owner's review", "approve": "the return was approved"}[f["decision"]]
+    facts = {"item": f["order"]["item"] if f["order"] else None, "outcome": plain, "reasons": f["reasons"][:2],
+             "offer": (f["evidence"] or {}).get("goodwill")}
+    prompt = (f"Write a short, polite, respectful reply (max 60 words) to a customer of a small festive-wear shop, in {lang}. Say clearly what was decided and why, using ONLY these facts. "
+              "Do not promise anything that is not in the facts. Do not blame the customer. Do not write any number, in digits or in words. If an offer is given in the facts, offer it. "
+              'Return ONLY JSON: {"text": string}.\n\nFACTS: ' + json.dumps(facts, ensure_ascii=False))
+    try:
+        r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
+                                         reasoning_effort=None, max_tokens=400, response_format={"type": "json_object"})
+        text = str(bob.parse_json(r.choices[0].message.content).get("text", ""))[:700]
+    except Exception as e:
+        raise HTTPException(502, f"could not draft a reply: {str(e)[:150]}")
+    extra = numbers_in(text) - numbers_in(json.dumps(facts))
+    if extra:
+        raise HTTPException(422, "the draft contained figures that are not in the case facts and was discarded; try again")
+    return {"language": lang, "text": text, "note": "Draft only: read it before you send it. It is not sent anywhere."}

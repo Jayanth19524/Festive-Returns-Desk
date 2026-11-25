@@ -156,3 +156,29 @@ def _actions(o: dict, rows: list[dict], listings: list[dict], avg_loss: int) -> 
                      "do": "Inspect and photograph each item when packing; the photo is also your evidence with the courier."})
     acts.sort(key=lambda a: -a["impact_inr"])
     return acts
+
+
+def evidence_level(case: dict) -> dict:
+    """How well a REJECTED return would stand up if the customer complained. Deterministic and explainable.
+    strong = the rejection rests on facts anyone can check in the order records (late, duplicate, unknown order).
+    Otherwise points are added for the customer's own words, a photo, a photo that supports the rejection, and an admission of wear."""
+    reasons = " ".join(case.get("reasons") or [])
+    policy = any(k in reasons for k in ("window is", "already has a return case", "not found in our records"))
+    if policy:
+        return {"level": "strong", "points": 4, "why": ["Rests on facts in the order records (delivery date, duplicate or unknown order)"],
+                "goodwill": None}
+    why, pts = [], 0
+    if case.get("transcript") and case["transcript"] not in ("(typed return)", "(imported return history)"):
+        pts += 1; why.append("The customer's own words are on file")
+    photo = case.get("photo_check") or {}
+    if case.get("photo_path"):
+        pts += 1; why.append("A photo is on file")
+        if photo.get("status") == "ok" and (photo.get("matches_claim") == "no" or photo.get("signs_of_wear") == "clear" or photo.get("injection_text")):
+            pts += 1; why.append("The photo check supports the rejection")
+    if case.get("claimed_condition") == "worn" or case.get("reason_category") == "worn_once":
+        pts += 1; why.append("The customer said the item was worn")
+    level = "strong" if pts >= 3 else "medium" if pts == 2 else "weak"
+    goodwill = None if level == "strong" else "Offer a size exchange, store credit or a partial refund before it escalates"
+    if not why:
+        why = ["Little evidence beyond the risk score"]
+    return {"level": level, "points": pts, "why": why, "goodwill": goodwill}

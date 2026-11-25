@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS cases (
   status TEXT, trace TEXT);          -- awaiting_workflow | approved_refunded | held | rejected | refund_blocked | seed_history
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, at TEXT, step TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS owner_credentials (credential_id TEXT PRIMARY KEY, public_key TEXT, sign_count INTEGER);
+CREATE TABLE IF NOT EXISTS complaints (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, filed_at TEXT, channel TEXT, summary TEXT, status TEXT, outcome TEXT, note TEXT, resolved_at TEXT);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS refunds (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER UNIQUE, amount_inr REAL, issued_at TEXT, issued_by TEXT);
 """
@@ -68,7 +69,7 @@ def init():
             if col not in existing_cols:
                 c.execute(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
 
-        for col in ("trace TEXT", "photo_path TEXT", "photo_check TEXT"):   # older databases were created before these columns existed
+        for col in ("trace TEXT", "photo_path TEXT", "photo_check TEXT", "origin TEXT"):   # older databases were created before these columns existed
             try:
                 c.execute(f"ALTER TABLE cases ADD COLUMN {col}")
             except Exception:

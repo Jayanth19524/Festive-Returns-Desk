@@ -78,6 +78,25 @@ export default function Insights({ compact = false }) {
         </Card>
       </section>
 
+      {ins.rejections?.rejected > 0 && (
+        <section>
+          <SectionTitle hint="if a rejected customer complains">Rejections and complaint risk</SectionTitle>
+          <Card className="p-4">
+            <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-5">
+              {[["Rejected", ins.rejections.rejected, "text-bad"], ["Well documented", ins.rejections.by_evidence.strong, "text-ok"], ["Partly", ins.rejections.by_evidence.medium, "text-warn"],
+                ["Thin", ins.rejections.by_evidence.weak, "text-bad"], ["Complaints open", ins.rejections.complaints.open, "text-plum"]].map(([k, v, c]) => (
+                <div key={k}><p className="text-xs uppercase tracking-wide text-muted">{k}</p><p className={`display num text-2xl font-semibold ${c}`}>{v}</p></div>))}
+            </div>
+            {!!ins.rejections.exposed.length && <>
+              <p className="mt-3 text-sm"><b>{ins.rejections.exposed.length}</b> rejected returns (worth {inr(ins.rejections.exposed_value_inr)}) rest on a risk score more than on checkable facts, so they are the likeliest to turn into a complaint. Fix them early:</p>
+              <div className="mt-2 divide-y divide-line text-sm">{ins.rejections.exposed.map((e) => (
+                <div key={e.case_id} className="flex flex-wrap items-center gap-2 py-2"><span className="min-w-40 flex-1"><b>{e.item}</b> <span className="num text-muted">{inr(e.amount_inr)}</span><span className="block text-xs text-muted">{e.goodwill}</span></span>
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${e.level === "weak" ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn"}`}>{e.level}</span><a href={`#/desk/${e.case_id}`} className="text-xs font-semibold text-plum-3">Open →</a></div>))}</div></>}
+            <p className="mt-3 text-xs text-muted">Every case has a printable evidence file (what the customer said, the rule and limits in force, the photo, the full timeline). Strength is a checklist of what we can show, not legal advice. Complaints so far: {ins.rejections.complaints.total} ({ins.rejections.complaints.reversed} refunded after complaint, {ins.rejections.complaints.goodwill} goodwill, {ins.rejections.complaints.upheld} rejection stood).</p>
+          </Card>
+        </section>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-5">
           <SectionTitle hint="last 8 weeks">Returns per week</SectionTitle>
