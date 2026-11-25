@@ -15,6 +15,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Web app (React + Tailwind): command centre, returns desk, return intelligence, live architecture page, customer view, demo controls | Works |
 | Demo storefront "Festive Boutique" (`#/shop`): browse festive listings by season, pick a size, place a demo order (no payment), then start a return from the order | Works. It is our own demo store, NOT Shopify. Listings are the same table a Shopify sync fills |
+| Photo evidence + AI (IBM Bob): the customer must add a photo; a vision model describes it; findings can only RAISE the risk score. AI action plan on Return intelligence | Code and fake-model tests are done. **Not yet run against the real IBM model** (needs your key; whether the model accepts images is unverified) |
 | Return Intelligence (why customers return, what to fix, preventable share) | Works: plain database aggregation and fixed advice text, no LLM |
 | NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
 | Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). A real platform-authenticator registration and approval were also run once in the app's browser pane on the author's Mac (₹14,500 case released, ledger shows "owner (Touch ID)") |
@@ -27,6 +28,7 @@ An **add-on for small sellers' existing stores** (Instagram, WhatsApp, Shopify o
 |---|---|
 | **Sarvam AI** | Saaras v4 speech-to-text (language auto-detected), Sarvam 105B turns the transcript into `{order_id, reason_category, claimed_condition, language}`, Bulbul v4 Flash speaks the decision back in the customer's language |
 | **Flagsmith** | `refunds_enabled` (freeze switch) plus remote config `auto_refund_limit_inr`, `hold_above_inr`, `max_returns_per_customer_30d`, `wardrobing_keywords_risk_weight`. Read live (1 s cache) |
+| **IBM Bob** (extra, not a hackathon sponsor) | Reads the customer's photo and writes the AI action plan. Never decides a refund |
 | **NudgeBee** | Webhook-triggered workflow per case: validate, switch (approve / hold / reject), HTTP callback into our app, notify. Every run is visible in its Executions tab |
 
 **Design rule:** the refund decision is plain code (`backend/app/risk.py`), never the LLM. The LLM only extracts fields. NudgeBee orchestrates; it does not score risk.

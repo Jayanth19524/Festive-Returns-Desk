@@ -13,23 +13,24 @@ const NODES = {
   stt: { x: 520, y: 46, w: 128, h: 58, t: "Saaras v4", s: "speech to text", who: "sarvam" },
   llm: { x: 662, y: 46, w: 128, h: 58, t: "Sarvam 105B", s: "text to JSON only", who: "sarvam" },
   tts: { x: 804, y: 46, w: 128, h: 58, t: "Bulbul v4", s: "spoken reply", who: "sarvam" },
+  ibm: { x: 520, y: 386, w: 412, h: 40, t: "IBM Bob model", s: "photo check · AI action plan (never decides)", who: "ibm" },
   flags: { x: 520, y: 170, w: 412, h: 62, t: "Flagsmith · live rules", s: "refunds_enabled · limits · risk weight", who: "flagsmith" },
   nb: { x: 520, y: 268, w: 412, h: 112, t: "NudgeBee workflow", s: "validate → switch(approve|hold|reject) → HTTP callback → notify", who: "nudgebee" },
 };
 const EDGES = {
   voice: ["customer", "intake"], stt: ["intake", "stt"], extract: ["intake", "llm"], flags: ["risk", "flags"], decide: ["intake", "risk"],
-  dispatch: ["risk", "nb"], wf_validate: ["nb", "guard"], wf_action: ["guard", "ledger"], owner: ["owner", "ledger"], tts: ["intake", "tts"],
+  dispatch: ["risk", "nb"], wf_validate: ["nb", "guard"], wf_action: ["guard", "ledger"], owner: ["owner", "ledger"], tts: ["intake", "tts"], photo: ["intake", "ibm"],
 };
 const ACTIVE = {  // step key -> boxes that light up
   voice: ["customer", "intake"], stt: ["intake", "stt"], extract: ["intake", "llm"], flags: ["risk", "flags"], decide: ["risk"],
-  dispatch: ["risk", "nb"], wf_validate: ["nb", "guard"], wf_action: ["nb", "guard", "ledger"], owner: ["owner", "ledger"], tts: ["intake", "tts"],
+  dispatch: ["risk", "nb"], wf_validate: ["nb", "guard"], wf_action: ["nb", "guard", "ledger"], owner: ["owner", "ledger"], tts: ["intake", "tts"], photo: ["intake", "ibm"],
 };
 const C = (id) => ({ x: NODES[id].x + NODES[id].w / 2, y: NODES[id].y + NODES[id].h / 2 });
 const SCENARIOS = [["clean", "Clean return"], ["worn", "Worn once"], ["bridal", "₹14,500 bridal"], ["injection", "Prompt injection"]];
 
 function Diagram({ active, edge }) {
   return (
-    <svg viewBox="0 0 946 420" className="w-full">
+    <svg viewBox="0 0 946 440" className="w-full">
       <rect x="220" y="14" width="224" height="380" rx="16" fill="#3b163608" stroke="#e9e0d4" />
       <text x="232" y="30" fontSize="11" fill="#7b6a74" fontWeight="600">OUR APP</text>
       <rect x="508" y="14" width="436" height="104" rx="16" fill="#ea580c0d" stroke="#fed7aa" /><text x="520" y="30" fontSize="11" fill="#c2410c" fontWeight="600">SARVAM AI</text>

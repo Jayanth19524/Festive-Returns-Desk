@@ -25,6 +25,7 @@ FLAGS = [
     ("hold_above_inr", True, "8000", "Refunds above this amount (INR) always wait for the owner's signed approval"),
     ("max_returns_per_customer_30d", True, "2", "Returns in the last 30 days at or above this count add risk"),
     ("wardrobing_keywords_risk_weight", True, "40", "Risk points added when the case looks like worn-then-returned (wardrobing)"),
+    ("photo_mismatch_risk_weight", True, "30", "Risk points added when the customer's photo does not support their claim (never lowers risk)"),
 ]
 
 

@@ -1,12 +1,14 @@
 """FastAPI app for Festive Returns Desk. All data is SIMULATED."""
-import base64, hmac, json, os, time
+import base64, hashlib, hmac, json, os, time, uuid
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from .config import ROOT
 from pydantic import BaseModel
-from . import cases, db, flagsmith_admin, flags, languages, sarvam_service as sv, webauthn_owner
+from . import bob, cases, db, flagsmith_admin, flags, languages, photo_check, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
-app = FastAPI(title="Festive Returns Desk (SIMULATED data)")
+app = FastAPI(title="Festive Returns Desk")
+UPLOADS = ROOT / "data" / "uploads"
 db.init()
 
 
@@ -45,6 +47,7 @@ def shop():
     live = db.get_meta("data_source") == "live"
     return {"season": os.getenv("FESTIVE_SEASON", "Navratri / Garba season"),
             "data_source": "live" if live else "demo", "store": db.get_meta("store_domain") if live else None,
+            "ai_configured": bob.configured(), "ai_model": bob.model_name() if bob.configured() else None,
             "shopify_configured": bool(os.getenv("SHOPIFY_SHOP_DOMAIN") and os.getenv("SHOPIFY_ACCESS_TOKEN"))}
 
 
@@ -61,7 +64,7 @@ def panel():
 
 
 @app.post("/api/intake")
-async def intake(audio: UploadFile = File(...), order_id: str | None = Form(default=None)):
+async def intake(audio: UploadFile = File(...), order_id: str | None = Form(default=None), photo: UploadFile | None = File(default=None)):
     """Customer's spoken reason -> transcript -> structured case -> decision -> spoken reply."""
     data = await audio.read()
     trace = []
@@ -80,8 +83,21 @@ async def intake(audio: UploadFile = File(...), order_id: str | None = Form(defa
         raise HTTPException(502, f"Sarvam call failed: {str(e)[:300]}")
     if order_id:  # the customer opened their personal return link, so the order is known: no need to hear it
         fields["order_id"] = order_id.strip().upper()
+    photo_path, check = None, None
+    if photo is not None:
+        jpeg = await photo.read()
+        if len(jpeg) > 6_000_000:
+            raise HTTPException(413, "photo is too large (max 6 MB)")
+        if jpeg[:3] != b"\xff\xd8\xff":   # JPEG magic bytes; the browser converts photos to JPEG before upload
+            raise HTTPException(422, "the photo must be a JPEG")
+        UPLOADS.mkdir(parents=True, exist_ok=True)
+        photo_path = f"{uuid.uuid4().hex}.jpg"
+        (UPLOADS / photo_path).write_bytes(jpeg)
+        t0 = time.perf_counter()
+        check = photo_check.check(jpeg, fields["reason_category"], fields["claimed_condition"])
+        trace.append({"stage": "photo", "who": "ibm", "ms": cases._ms(t0), "detail": check.get("detail") or check.get("notes") or "photo checked", "status": check["status"]})
     lang = languages.get(detected)["code"]
-    case = cases.create_case(fields, transcript, lang, trace)
+    case = cases.create_case(fields, transcript, lang, trace, photo_path, check)
     reply = cases.REPLIES[case["decision"]][lang]
     try:
         t0 = time.perf_counter()
@@ -552,3 +568,50 @@ def demo_scenario(name: str):
         fields = sv.extract(text)
         trace.append({"stage": "extract", "who": "sarvam", "ms": cases._ms(t0)})
     return cases.create_case(fields, text, "en-IN", trace)
+
+
+@app.get("/api/cases/{cid}/photo")
+def case_photo(cid: int):
+    """The customer's photo for a case (owner screens only; the tunnel guard blocks this path from outside)."""
+    with db.conn() as c:
+        r = c.execute("SELECT photo_path FROM cases WHERE id=?", (cid,)).fetchone()
+    if not r or not r[0] or "/" in r[0]:
+        raise HTTPException(404, "no photo")
+    f = UPLOADS / r[0]
+    if not f.exists():
+        raise HTTPException(404, "no photo")
+    return FileResponse(f, media_type="image/jpeg")
+
+
+_ai_cache: dict = {}
+
+
+@app.get("/api/insights/ai")
+def insights_ai():
+    """AI action plan: an IBM Bob model reads our aggregated numbers and writes what the seller should fix first.
+    The numbers shown next to it come from our database; the model may only reference listings that exist, and says nothing about money."""
+    if not bob.configured():
+        return {"configured": False, "message": "Add BOB_API_KEY, BOB_BASE_URL and BOB_MODEL to .env to turn on the AI action plan."}
+    data = insights()
+    if not data["total_returns"]:
+        return {"configured": True, "plan": None, "message": "No returns yet."}
+    slim = {"returns": data["total_returns"], "preventable_pct": data["preventable"]["share_pct"],
+            "reasons": [{"reason": r["reason"], "share_pct": r["share_pct"], "count": r["count"]} for r in data["reasons"][:5]],
+            "listings": {k: data["listings"][k] for k in ("total", "missing_measurements", "size_return_rate_pct")} if "listings" in data else None,
+            "fix_first": [{"sku": f["sku"], "title": f["title"], "size_returns": f["size_returns"], "orders": f["orders"]} for f in data.get("listings", {}).get("fix_first", [])[:6]]}
+    key = hashlib.sha256(json.dumps(slim, sort_keys=True).encode()).hexdigest()
+    if key in _ai_cache:
+        return _ai_cache[key]
+    prompt = ("You advise the owner of a small festive-wear shop on reducing avoidable returns. Using ONLY the JSON below, write a short action plan. "
+              'Return ONLY JSON: {"headline": string (max 18 words), "actions": [{"title": string, "why": string (max 30 words, may cite the given percentages), '
+              '"skus": [string]}]} with 3 to 4 actions. Only use SKUs that appear in the data. Do not invent numbers.\n\n' + json.dumps(slim))
+    try:
+        plan = bob.parse_json(bob.chat([{"role": "user", "content": prompt}], max_tokens=600))
+        known = {f["sku"] for f in slim["fix_first"]}
+        acts = [{"title": str(a.get("title", ""))[:90], "why": str(a.get("why", ""))[:240], "skus": [x for x in (a.get("skus") or []) if x in known]}
+                for a in (plan.get("actions") or [])[:4] if isinstance(a, dict)]
+        out = {"configured": True, "model": bob.model_name(), "plan": {"headline": str(plan.get("headline", ""))[:160], "actions": acts}}
+    except Exception as e:
+        return {"configured": True, "plan": None, "error": str(e)[:300]}
+    _ai_cache[key] = out
+    return out

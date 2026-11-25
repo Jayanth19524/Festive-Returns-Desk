@@ -47,6 +47,7 @@ export const WHO = {
   flagsmith: { label: "Flagsmith", cls: "bg-violet-100 text-violet-800", dot: "#7c3aed" },
   nudgebee: { label: "NudgeBee", cls: "bg-amber-100 text-amber-900", dot: "#d9a400" },
   ours: { label: "Our code", cls: "bg-plum/10 text-plum", dot: "#3b1636" },
+  ibm: { label: "IBM Bob", cls: "bg-blue-100 text-blue-800", dot: "#2563eb" },
   owner: { label: "Owner", cls: "bg-gold-soft text-warn", dot: "#b8923a" },
   customer: { label: "Customer", cls: "bg-stone-100 text-stone-700", dot: "#78716c" },
 };

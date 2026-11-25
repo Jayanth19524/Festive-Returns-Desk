@@ -9,6 +9,17 @@ export default function Customer({ orderId }) {
   useEffect(() => { setOrder(null); if (orderId) fetch(`/api/orders/${orderId}`).then((r) => (r.ok ? r.json() : null)).then(setOrder).catch(() => {}); }, [orderId]);
   const [rec, setRec] = useState(false), [busy, setBusy] = useState(false), [res, setRes] = useState(null), [err, setErr] = useState(null);
   const mr = useRef(null), chunks = useRef([]);
+  const [photo, setPhoto] = useState(null);          // {blob, url}: the shopper's photo of the item, shrunk to a JPEG in the browser
+
+  async function pick(file) {
+    if (!file) return;
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+    const blob = await new Promise((ok) => cv.toBlob(ok, "image/jpeg", 0.85));
+    setPhoto({ blob, url: URL.createObjectURL(blob) });
+  }
 
   async function start() {
     setErr(null);
@@ -22,7 +33,7 @@ export default function Customer({ orderId }) {
   }
   async function send(blob) {
     setBusy(true); setRes(null);
-    const f = new FormData(); f.append("audio", blob, "return.webm"); if (orderId) f.append("order_id", orderId);
+    const f = new FormData(); f.append("audio", blob, "return.webm"); if (photo) f.append("photo", photo.blob, "item.jpg"); if (orderId) f.append("order_id", orderId);
     try {
       const r = await fetch("/api/intake", { method: "POST", body: f }); const j = await r.json();
       if (!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
@@ -54,12 +65,22 @@ export default function Customer({ orderId }) {
           )}
           <div className="mt-3 flex flex-wrap justify-center gap-1.5">{LANGS.map((l) => <span key={l} className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs">{l}</span>)}</div>
         </div>
+        <div className="border-b border-line px-6 py-5">
+          <p className="text-sm font-semibold text-plum">Step 1 · Show us the item</p>
+          <p className="text-xs text-muted">A clear photo of the whole item (and the problem, if there is one).</p>
+          <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gold bg-ivory p-3 text-sm">
+            {photo ? <img src={photo.url} alt="your item" className="h-16 w-16 rounded-lg object-cover" /> : <span className="flex h-16 w-16 items-center justify-center rounded-lg bg-gold-soft text-2xl">📷</span>}
+            <span className="font-semibold">{photo ? "Change photo" : "Take or upload a photo"}</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => pick(e.target.files?.[0]).catch((x) => setErr("Could not read that photo: " + x.message))} />
+          </label>
+        </div>
         <div className="px-6 py-6 text-center">
-          <button onClick={rec ? () => { mr.current?.stop(); setRec(false); } : start} disabled={busy}
-            className={`mx-auto -mt-16 flex h-28 w-28 items-center justify-center rounded-full border-4 border-paper text-3xl text-white shadow-lg transition ${rec ? "animate-pulse bg-bad" : "bg-gold hover:opacity-90"} disabled:bg-stone-400`}>
+          <p className="mb-3 text-sm font-semibold text-plum">Step 2 · Tell us why</p>
+          <button onClick={rec ? () => { mr.current?.stop(); setRec(false); } : start} disabled={busy || !photo}
+            className={`mx-auto flex h-28 w-28 items-center justify-center rounded-full border-4 border-paper text-3xl text-white shadow-lg transition ${rec ? "animate-pulse bg-bad" : "bg-gold hover:opacity-90"} disabled:bg-stone-400`}>
             {busy ? "…" : rec ? "■" : "🎤"}
           </button>
-          <p className="mt-3 text-sm text-muted">{busy ? "Understanding your request…" : rec ? "Listening… tap to finish" : "Tap and speak (up to 30 seconds)"}</p>
+          <p className="mt-3 text-sm text-muted">{busy ? "Looking at your photo and listening…" : rec ? "Listening… tap to finish" : photo ? "Tap and speak (up to 30 seconds)" : "Add a photo first"}</p>
           <p className="mt-1 text-xs text-muted">{order ? "Example: “The blouse is too tight, I have not worn it.”" : "Example: “My order is SHP-2002, the size is wrong, I have not worn it.”"}</p>
           {err && <p className="mt-3 rounded-xl bg-bad-bg p-2 text-sm text-bad">{err}</p>}
         </div>

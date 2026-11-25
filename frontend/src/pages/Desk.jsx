@@ -79,6 +79,27 @@ export default function Desk({ selected }) {
                 <p className="mt-2 text-xs text-muted">Flagsmith values at that moment: auto-refund ≤ {inr(cur.flags_in_effect?.cfg?.auto_refund_limit_inr)}, Touch ID above {inr(cur.flags_in_effect?.cfg?.hold_above_inr)}, refunds {cur.flags_in_effect?.cfg?.refunds_enabled ? "on" : "frozen"}.</p>
               </div>
 
+              {cur.photo_path && (
+                <div className="mt-4 flex gap-3 rounded-xl border border-line p-3">
+                  <img src={`/api/cases/${cur.id}/photo`} alt="customer's photo" className="h-32 w-28 shrink-0 rounded-lg object-cover" />
+                  <div className="min-w-0 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">Customer's photo</p>
+                    {cur.photo_check?.status === "ok" ? (
+                      <>
+                        <p className="mt-1"><WhoTag who="ibm" /> <span className="text-xs text-muted">{cur.photo_check.model} · confidence {Math.round(cur.photo_check.confidence * 100)}%</span></p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+                          <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">wear: {cur.photo_check.signs_of_wear}</span>
+                          <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">damage: {cur.photo_check.visible_damage ? "visible" : "none seen"}</span>
+                          <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">tags: {cur.photo_check.tags_attached}</span>
+                          <span className={`rounded-md px-2 py-0.5 font-semibold ${cur.photo_check.matches_claim === "no" ? "bg-bad-bg text-bad" : cur.photo_check.matches_claim === "yes" ? "bg-ok-bg text-ok" : "bg-ivory ring-1 ring-line"}`}>matches claim: {cur.photo_check.matches_claim}</span>
+                        </div>
+                        <p className="mt-1.5 text-muted">{cur.photo_check.damage_description || cur.photo_check.notes}</p>
+                        <p className="mt-1 text-xs text-muted">The model only describes the photo. A mismatch can add risk points; it can never approve anything.</p>
+                      </>
+                    ) : <p className="mt-1 text-muted">{cur.photo_check?.detail || "Not analysed."}</p>}
+                  </div>
+                </div>
+              )}
               {cur.refund && <p className="mt-4 rounded-xl bg-ok-bg p-3 text-sm font-semibold text-ok">Refunded {inr(cur.refund.amount_inr)} · {cur.refund.issued_by} (recorded in the ledger, not paid out)</p>}
 
               {cur.status === "held" && (

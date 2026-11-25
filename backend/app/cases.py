@@ -21,23 +21,24 @@ REPLIES = {
 }
 
 
-def evaluate(c, case: dict, cfg: dict, exclude_case_id=None) -> dict:
+def evaluate(c, case: dict, cfg: dict, exclude_case_id=None, photo: dict | None = None) -> dict:
     """Look up facts in OUR database, then apply the deterministic rule."""
     order = c.execute("SELECT * FROM orders WHERE id=?", (case.get("order_id"),)).fetchone()
     order = dict(order) if order else None
     if order is None:
-        return risk.decide(case, None, 0, False, cfg), None
+        return risk.decide(case, None, 0, False, cfg, photo), None
     already = c.execute("SELECT 1 FROM cases WHERE order_id=? AND status!='seed_history' AND id IS NOT ?",
                         (order["id"], exclude_case_id)).fetchone() is not None
     n = db.returns_30d(c, order["customer_id"])
-    return risk.decide(case, order, n, already, cfg), order
+    return risk.decide(case, order, n, already, cfg, photo), order
 
 
 def _ms(t0):
     return round((time.perf_counter() - t0) * 1000, 1)
 
 
-def create_case(case: dict, transcript: str = "", language: str = "hi-IN", trace: list | None = None) -> dict:
+def create_case(case: dict, transcript: str = "", language: str = "hi-IN", trace: list | None = None,
+                photo_path: str | None = None, photo_check: dict | None = None) -> dict:
     """`trace` carries the timed steps that happened before this call (speech-to-text, extraction)."""
     trace = list(trace or [])
     t0 = time.perf_counter()
@@ -45,15 +46,15 @@ def create_case(case: dict, transcript: str = "", language: str = "hi-IN", trace
     trace.append({"stage": "flags", "who": "flagsmith", "ms": _ms(t0), "ok": live["live"], "detail": live["status"], "data": live["cfg"]})
     t0 = time.perf_counter()
     with db.conn() as c:
-        res, order = evaluate(c, case, live["cfg"])
+        res, order = evaluate(c, case, live["cfg"], photo=photo_check)
         trace.append({"stage": "decide", "who": "ours", "ms": _ms(t0), "detail": f"{res['decision']} (score {res['score']:g})",
                       "data": {"decision": res["decision"], "score": res["score"], "reasons": res["reasons"]}})
         cur = c.execute(
             "INSERT INTO cases (order_id,customer_id,created_at,transcript,language,reason_category,claimed_condition,"
-            "decision,score,reasons,flags_in_effect,signed_approval_required,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "decision,score,reasons,flags_in_effect,signed_approval_required,status,photo_path,photo_check) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (case.get("order_id"), order["customer_id"] if order else None, db.now(), transcript, language,
              case["reason_category"], case["claimed_condition"], res["decision"], res["score"], json.dumps(res["reasons"]),
-             json.dumps({"cfg": live["cfg"], "source": live["status"]}), int(res["signed_approval_required"]), "awaiting_workflow"))
+             json.dumps({"cfg": live["cfg"], "source": live["status"]}), int(res["signed_approval_required"]), "awaiting_workflow", photo_path, json.dumps(photo_check) if photo_check else None))
         cid = cur.lastrowid
         db.log_event(c, cid, "intake", f"fields from speech: {json.dumps(case, ensure_ascii=False)}")
         db.log_event(c, cid, "decision", f"{res['decision']} (score {res['score']:g}); " + "; ".join(res["reasons"]))
@@ -201,6 +202,10 @@ def steps(cid: int) -> dict | None:
     else:
         out.append({"key": "voice", "who": "customer", "title": "Return filed", "ms": None,
                     "detail": f"Structured case filed without voice: {case['reason_category']} on {case['order_id']}."})
+    ph = tr.get("photo")
+    if ph:
+        out.append({"key": "photo", "who": "ibm", "title": "Photo check · IBM Bob model" if ph.get("status") == "ok" else "Photo received (not analysed)",
+                    "ms": ph["ms"], "detail": ph.get("detail") or ""})
     f = tr.get("flags")
     out.append({"key": "flags", "who": "flagsmith", "title": "Read live rules · Flagsmith", "ms": f["ms"] if f else None,
                 "detail": (f["detail"] + ". Thresholds: " + ", ".join(f"{k}={v}" for k, v in f["data"].items())) if f else ""})

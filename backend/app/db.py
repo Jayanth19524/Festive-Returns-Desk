@@ -68,10 +68,11 @@ def init():
             if col not in existing_cols:
                 c.execute(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
 
-        try:  # older databases were created before the trace column existed
-            c.execute("ALTER TABLE cases ADD COLUMN trace TEXT")
-        except Exception:
-            pass
+        for col in ("trace TEXT", "photo_path TEXT", "photo_check TEXT"):   # older databases were created before these columns existed
+            try:
+                c.execute(f"ALTER TABLE cases ADD COLUMN {col}")
+            except Exception:
+                pass
         if c.execute("SELECT COUNT(*) FROM customers").fetchone()[0]:
             return
         c.executemany("INSERT INTO customers VALUES (?,?)", CUSTOMERS)
@@ -223,7 +224,7 @@ def log_event(c, case_id, step, detail=""):
 
 def row(r):
     d = dict(r)
-    for k in ("reasons", "flags_in_effect", "trace"):
+    for k in ("reasons", "flags_in_effect", "trace", "photo_check"):
         if k in d and isinstance(d[k], str):
             d[k] = json.loads(d[k] or "null")
     return d

@@ -24,6 +24,7 @@ DEFAULTS = {
     "hold_above_inr": (True, "8000"),
     "max_returns_per_customer_30d": (True, "2"),
     "wardrobing_keywords_risk_weight": (True, "40"),
+    "photo_mismatch_risk_weight": (True, "30"),
 }
 _client, _cache = None, {"t": 0.0, "v": None}
 
@@ -71,6 +72,7 @@ def load() -> dict:
         "hold_above_inr": _num(flags["hold_above_inr"]["value"], 8000),
         "max_returns_per_customer_30d": int(_num(flags["max_returns_per_customer_30d"]["value"], 2)),
         "wardrobing_risk_weight": _num(flags["wardrobing_keywords_risk_weight"]["value"], 40),
+        "photo_risk_weight": _num(flags["photo_mismatch_risk_weight"]["value"], 30),
     }
     out = {"cfg": cfg, "flags": flags, "status": status, "live": status == "live from Flagsmith"}
     _cache.update(t=now, v=out)

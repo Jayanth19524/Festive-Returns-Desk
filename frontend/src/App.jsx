@@ -60,6 +60,7 @@ export default function App() {
       <main className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper/80 px-4 py-2 text-xs backdrop-blur lg:px-8">
           <span className={`rounded-full px-2.5 py-1 font-semibold ${frozen ? "bg-bad-bg text-bad" : "bg-ok-bg text-ok"}`}>{frozen ? "● Refunds FROZEN" : "● Refunds on"}</span>
+          <span className={`rounded-full px-2.5 py-1 font-semibold ${shop.ai_configured ? "bg-blue-100 text-blue-800" : "bg-line text-muted"}`}>IBM Bob {shop.ai_configured ? "on" : "not connected"}</span>
           <span className={`rounded-full px-2.5 py-1 font-semibold ${panel?.live ? "bg-violet-100 text-violet-800" : "bg-bad-bg text-bad"}`}>
             Flagsmith {panel ? (panel.live ? "live" : "NOT live") : "…"}
           </span>
