@@ -1,6 +1,6 @@
 import { useContext, useState } from "react";
 import usePoll from "../usePoll.js";
-import { Button, Card, SectionTitle, ShopContext, inr } from "../ui.jsx";
+import { Button, Card, DecisionBadge, SectionTitle, ShopContext, StatusBadge, inr } from "../ui.jsx";
 
 const SEASON_COLOR = { diwali: "bg-amber-100 text-amber-800", navratri: "bg-fuchsia-100 text-fuchsia-800", eid: "bg-emerald-100 text-emerald-800",
   pongal: "bg-orange-100 text-orange-800", christmas: "bg-red-100 text-red-800" };
@@ -19,6 +19,12 @@ export default function Catalogue() {
   const shop = useContext(ShopContext);
   const [season, setSeason] = useState("all");
   const [msg, setMsg] = useState("");
+  const [open, setOpen] = useState(null);        // sku whose runs are shown
+  const [runs, setRuns] = useState(null);
+  const { data: live } = usePoll("/api/live", 2000);
+  const sim = live?.simulation;
+  const showRuns = async (sku) => { setOpen(sku); setRuns(null); const r = await fetch(`/api/products/${sku}/returns`); setRuns(r.ok ? await r.json() : { error: true }); };
+  const runAll = async () => { setMsg("Filing one return on every product…"); const r = await fetch("/api/demo/run-all-products", { method: "POST" }); setMsg(r.ok ? "Running: each product gets a real return through Sarvam rules, Flagsmith and a NudgeBee workflow." : "Could not start"); };
   const sync = async () => {
     setMsg("Syncing…");
     const r = await fetch(shop.shopify_configured ? "/api/shopify/sync" : "/api/demo/shopify-sync", { method: "POST" });
@@ -38,9 +44,11 @@ export default function Catalogue() {
           <h1 className="display text-3xl font-semibold text-plum">Store catalogue</h1>
           <p className="text-muted">{shop.data_source === "live" ? `Listings synced from ${shop.store}` : "Demo store data"}, and which ones are causing returns.</p>
         </div>
-        <Button kind="primary" onClick={sync}>{shop.shopify_configured ? "⟳ Sync my Shopify store" : "⟳ Load demo store"}</Button>
+        <div className="flex flex-wrap gap-2"><Button onClick={runAll} disabled={sim?.running}>▶ Run a return on every product</Button>
+        <Button kind="primary" onClick={sync}>{shop.shopify_configured ? "⟳ Sync my Shopify store" : "⟳ Load demo store"}</Button></div>
       </div>
       {msg && <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm text-warn">{msg}</p>}
+      {sim && sim.phase === "One return on every product" && <p className="rounded-xl bg-paper px-3 py-2 text-sm ring-1 ring-line">One return on every product: <b className="num">{sim.filed}/{sim.total}</b> {sim.running ? "running…" : "done. Click any product to see its run."}</p>}
 
       {!data.total ? (
         <Card className="p-8 text-center"><p className="display text-xl text-plum">No store connected yet</p>
@@ -61,7 +69,7 @@ export default function Catalogue() {
 
           <div className="grid gap-3 md:grid-cols-2">
             {list.map((v, i) => (
-              <Card key={v.sku} className={`flex gap-3 p-3 ${v.missing_measurements && v.size_returns ? "border-warn/40" : ""}`}>
+              <Card key={v.sku} onClick={() => showRuns(v.sku)} className={`flex cursor-pointer gap-3 p-3 transition hover:border-gold ${v.missing_measurements && v.size_returns ? "border-warn/40" : ""}`}>
                 <Thumb v={v} grad={TILE[i % TILE.length]} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2"><p className="truncate font-semibold">{v.title}</p><p className="num font-semibold">{inr(v.price_inr)}</p></div>
@@ -81,6 +89,33 @@ export default function Catalogue() {
               </Card>
             ))}
           </div>
+
+          {open && (
+            <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onClick={() => setOpen(null)}>
+              <div className="h-full w-full max-w-lg overflow-y-auto bg-ivory p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start justify-between gap-2"><div><p className="font-mono text-xs text-muted">{open}</p><h2 className="display text-xl font-semibold text-plum">{runs?.title || "Runs"}</h2></div>
+                  <Button className="!px-2.5 !py-1 text-xs" onClick={() => setOpen(null)}>Close</Button></div>
+                {!runs ? <p className="mt-4 text-muted">Loading…</p> : runs.error ? <p className="mt-4 text-bad">Could not load.</p> : (
+                  <>
+                    <p className="mt-2 text-sm text-muted">{runs.orders} orders · {runs.returns} returns · <b className="text-ink">{runs.live_runs}</b> live runs · <b className="text-ink">{runs.nudgebee_runs}</b> NudgeBee workflow runs</p>
+                    <div className="mt-3 space-y-2">
+                      {runs.items.map((x) => (
+                        <Card key={x.case_id} className="p-3 text-sm">
+                          <div className="flex flex-wrap items-center gap-2"><span className="num text-xs text-muted">#{x.case_id}</span><span className="rounded-md bg-gold-soft px-2 py-0.5 text-xs font-semibold text-warn">{x.kind}</span>
+                            <span className="text-muted">{x.reason.replaceAll("_", " ")}</span><span className="ml-auto flex gap-1.5"><DecisionBadge d={x.decision} />{x.kind !== "imported history" && <StatusBadge s={x.status} />}</span></div>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+                            {x.nudgebee_ran ? <span className="rounded-md bg-amber-100 px-2 py-0.5 font-semibold text-amber-900">NudgeBee workflow ran ✓</span> : <span className="text-muted">{x.kind === "imported history" ? "Imported from the past: no live run" : "NudgeBee running…"}</span>}
+                            {x.has_photo && <span className="text-muted">📷 photo</span>}
+                            {x.kind !== "imported history" && <><a className="font-semibold text-plum-3" href={`#/desk/${x.case_id}`}>Open case →</a><a className="font-semibold text-plum-3" href={`#/architecture/${x.case_id}`}>Replay the run →</a></>}
+                          </div>
+                        </Card>
+                      ))}
+                      {!runs.items.length && <p className="text-sm text-muted">No returns on this product yet. Press “Run a return on every product”.</p>}
+                    </div>
+                  </>)}
+              </div>
+            </div>
+          )}
 
           <section>
             <SectionTitle hint="send to the customer in the order email, WhatsApp or Instagram">Personal return links</SectionTitle>

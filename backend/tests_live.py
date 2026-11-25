@@ -71,4 +71,20 @@ class T(unittest.TestCase):
         with db.conn() as c:
             self.assertEqual(c.execute("SELECT COUNT(*) FROM cases WHERE status NOT IN ('seed_history','history')").fetchone()[0], 1)
 
+
+    def test_every_product_can_get_a_run_and_the_runs_view_is_honest(self):
+        from fastapi.testclient import TestClient
+        from backend.app.main import app
+        with db.conn() as c:
+            skus = [r[0] for r in c.execute("SELECT sku FROM products")]
+            made = [live._order_for(c, s) for s in skus]
+        self.assertEqual(len(made), len(skus)); self.assertTrue(all(m.startswith("SHP-") for m in made))
+        cases.create_case({"order_id": made[0], "reason_category": "wrong_size", "claimed_condition": "unworn"}, "t", "en-IN")
+        d = TestClient(app).get(f"/api/products/{skus[0]}/returns").json()
+        kinds = {x["kind"] for x in d["items"]}
+        self.assertIn("imported history", kinds)
+        imported = [x for x in d["items"] if x["kind"] == "imported history"]
+        self.assertTrue(all(not x["nudgebee_ran"] for x in imported))       # imported history never claims a workflow run
+        self.assertEqual(TestClient(app).get("/api/products/NOPE/returns").status_code, 404)
+
 if __name__ == "__main__": unittest.main()

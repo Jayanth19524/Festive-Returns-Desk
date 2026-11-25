@@ -54,7 +54,7 @@ function Diagram({ active, edge }) {
   );
 }
 
-export default function Architecture() {
+export default function Architecture({ initialId }) {
   const { data: cases } = usePoll("/api/cases", 4000);
   const [cid, setCid] = useState(null);
   const [data, setData] = useState(null);
@@ -68,7 +68,17 @@ export default function Architecture() {
     const r = await fetch(`/api/cases/${id}/steps`); if (!r.ok) return null;
     const d = await r.json(); setData(d); setCid(id); return d;
   };
-  useEffect(() => { if (!cid && cases?.length) load(cases[0].id); }, [cases]);  // eslint-disable-line
+  useEffect(() => {
+    if (!cid) return;
+    const t = setInterval(async () => {
+      const r = await fetch(`/api/cases/${cid}/steps`);
+      if (r.ok) setData(await r.json());
+      else if (cases?.length) load(cases[0].id);   // the case no longer exists (data was reset)
+    }, 3000);
+    return () => clearInterval(t);
+  }, [cid, cases]);  // eslint-disable-line
+  useEffect(() => { if (initialId) load(initialId); }, [initialId]);  // eslint-disable-line  (opened from a product's runs)
+  useEffect(() => { if (!cid && !initialId && cases?.length) load(cases[0].id); }, [cases]);  // eslint-disable-line
   useEffect(() => {
     clearInterval(timer.current);
     if (play && data?.steps.length) timer.current = setInterval(() => setI((x) => (x + 1) % data.steps.length), 2200 / speed);
@@ -135,7 +145,7 @@ export default function Architecture() {
             <Button onClick={() => { setPlay(false); setI((x) => (x + 1) % steps.length); }}>▶</Button>
             <Button onClick={() => setSpeed(speed === 1 ? 2 : speed === 2 ? 0.5 : 1)}>{speed}×</Button>
             <select value={cid || ""} onChange={(e) => { load(Number(e.target.value)); setI(0); }} className="rounded-xl border border-line bg-paper px-2 py-2 text-sm">
-              {(cases || []).map((k) => <option key={k.id} value={k.id}>#{k.id} · {k.order?.item} · {k.decision}</option>)}
+              {(cases || []).map((k) => <option key={k.id} value={k.id}>#{k.id} · {k.order?.item} · {k.decision}{{ held: " → held for owner", approved_refunded: " → refunded", rejected: " → rejected", awaiting_workflow: " → workflow running" }[k.status] || ""}</option>)}
             </select>
             <span className="ml-auto text-xs text-muted">step {steps.length ? Math.min(i, steps.length - 1) + 1 : 0} of {steps.length}</span>
           </div>

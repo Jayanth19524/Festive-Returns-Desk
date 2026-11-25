@@ -77,7 +77,7 @@ export default function App() {
           {route === "live" && <Live />}
           {route === "catalogue" && <Catalogue />}
           {route === "insights" && <Insights />}
-          {route === "architecture" && <Architecture />}
+          {route === "architecture" && <Architecture initialId={arg ? Number(arg) : null} />}
         </div>
       </main>
       <DemoPanel />

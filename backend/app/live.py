@@ -223,3 +223,52 @@ def start(seed: int = 7) -> dict:
 def stop() -> dict:
     _stop.set()
     return {"ok": True}
+
+
+# ----- one return on every product: so every listing has a real run (rule + Flagsmith + NudgeBee) to look at -----
+_ALL_REASONS = ["wrong_size", "changed_mind", "damaged", "not_as_described", "worn_once"]   # cycled across the products
+
+
+def _order_for(c, sku):
+    """A fresh, unreturned order of this product, or a new demo order (a shopper buys it today, delivered tomorrow)."""
+    row = c.execute("SELECT o.id FROM orders o WHERE (o.item_sku=? OR o.item_sku LIKE ?) AND o.delivered_days_ago<=15 "
+                    "AND o.customer_id NOT IN (SELECT customer_id FROM cases WHERE status='seed_history') "
+                    "AND o.id NOT IN (SELECT order_id FROM cases WHERE status!='seed_history') ORDER BY o.id LIMIT 1", (sku, sku + "-%")).fetchone()
+    if row:
+        return row[0]
+    p = c.execute("SELECT title, price_inr FROM products WHERE sku=?", (sku,)).fetchone()
+    n = (c.execute("SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) FROM orders WHERE id LIKE 'SHP-%'").fetchone()[0] or 2000) + 1
+    c.execute("INSERT INTO customers (id, name) VALUES (?, ?)", (f"DEMO-C-{n}", "Demo shopper"))
+    c.execute("INSERT INTO orders (id, customer_id, item, amount_inr, delivered_days_ago, item_sku, delivered_at, source) VALUES (?,?,?,?,?,?,?,?)",
+              (f"SHP-{n}", f"DEMO-C-{n}", p["title"], p["price_inr"], 1, sku, db.now()[:10], "demo-store"))
+    return f"SHP-{n}"
+
+
+def _run_all():
+    with db.conn() as c:
+        skus = [r[0] for r in c.execute("SELECT sku FROM products ORDER BY season, sku")]
+    SIM.update(running=True, filed=0, total=len(skus), phase="One return on every product", message="")
+    try:
+        for i, sku in enumerate(skus):
+            if _stop.is_set():
+                return
+            with db.conn() as c:
+                oid = _order_for(c, sku)
+            _file(oid, _ALL_REASONS[i % len(_ALL_REASONS)], None)
+            SIM["filed"] = i + 1
+            if _stop.wait(1.2):
+                return
+        SIM["phase"] = "done"
+    finally:
+        SIM["running"] = False
+        if SIM["phase"] != "done":
+            SIM["phase"] = "stopped"
+
+
+def start_all() -> dict:
+    if SIM["running"]:
+        return {"ok": False, "error": "already running"}
+    _stop.clear()
+    clear_sim()
+    threading.Thread(target=_run_all, daemon=True).start()
+    return {"ok": True}

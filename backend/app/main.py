@@ -808,3 +808,32 @@ def reply_draft(cid: int):
     if extra:
         raise HTTPException(422, "the draft contained figures that are not in the case facts and was discarded; try again")
     return {"language": lang, "text": text, "note": "Draft only: read it before you send it. It is not sent anywhere."}
+
+
+@app.post("/api/demo/run-all-products", dependencies=[Depends(demo_only)])
+def run_all_products():
+    """File one return on EVERY product (cycling the reasons) so each listing has a real run to look at."""
+    return live.start_all()
+
+
+@app.get("/api/products/{sku}/returns")
+def product_returns(sku: str):
+    """Every return on one product, with its run: the decision, whether NudgeBee ran it, and how it ended. Imported history has no live run."""
+    with db.conn() as c:
+        p = c.execute("SELECT sku, title, season, price_inr FROM products WHERE sku=?", (sku,)).fetchone()
+        if not p:
+            raise HTTPException(404, "no such product")
+        rows = c.execute("SELECT k.id, k.order_id, k.created_at, k.reason_category r, k.decision, k.status, k.origin, k.photo_path pp, o.item "
+                         "FROM cases k JOIN orders o ON o.id=k.order_id WHERE (o.item_sku=? OR o.item_sku LIKE ?) AND k.status!='seed_history' ORDER BY k.id DESC",
+                         (sku, sku + "-%")).fetchall()
+        runs = {r[0]: r[1] for r in c.execute("SELECT case_id, COUNT(*) FROM events WHERE step IN ('workflow_validate','refund_issued','case_held','case_rejected') GROUP BY case_id")}
+        orders = c.execute("SELECT COUNT(*) FROM orders WHERE item_sku=? OR item_sku LIKE ?", (sku, sku + "-%")).fetchone()[0]
+    out = []
+    for r in rows:
+        imported = r["status"] == "history"
+        out.append({"case_id": r["id"], "order_id": r["order_id"], "item": r["item"], "reason": r["r"], "decision": r["decision"], "status": r["status"],
+                    "kind": "imported history" if imported else ("simulated run" if r["origin"] == "sim" else "live run"),
+                    "nudgebee_ran": (runs.get(r["id"], 0) > 0) and not imported, "has_photo": bool(r["pp"]), "created_at": r["created_at"]})
+    live_runs = [x for x in out if x["kind"] != "imported history"]
+    return {"sku": p["sku"], "title": p["title"], "season": p["season"], "price_inr": p["price_inr"], "orders": orders, "returns": len(out),
+            "live_runs": len(live_runs), "nudgebee_runs": sum(1 for x in out if x["nudgebee_ran"]), "items": out}

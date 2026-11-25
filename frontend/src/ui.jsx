@@ -22,8 +22,8 @@ export const StatusBadge = ({ s }) => {
   return <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>{label}</span>;
 };
 
-export const Card = ({ className = "", children }) => (
-  <div className={`rounded-2xl border border-line bg-paper shadow-[0_1px_2px_rgba(59,22,54,0.04)] ${className}`}>{children}</div>
+export const Card = ({ className = "", children, ...rest }) => (
+  <div {...rest} className={`rounded-2xl border border-line bg-paper shadow-[0_1px_2px_rgba(59,22,54,0.04)] ${className}`}>{children}</div>
 );
 
 export const Kpi = ({ label, value, sub, tone = "plain" }) => (
