@@ -1,4 +1,4 @@
-# Self-hosted Flagsmith for Garba Returns Desk (UI + API on http://localhost:8000).
+# Self-hosted Flagsmith for Festive Returns Desk (UI + API on http://localhost:8000).
 # If a Flagsmith is ALREADY running on port 8000, do NOT start this one: reuse it and create the flags there.
 # Adapted from the official file: https://github.com/Flagsmith/flagsmith/blob/main/docker-compose.yml
 # Simplified: no task processor (TASK_RUN_METHOD=SYNCHRONOUSLY). Secrets are local-demo values only.
