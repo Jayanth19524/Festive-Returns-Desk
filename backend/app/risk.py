@@ -34,6 +34,8 @@ def decide(case: dict, order: dict | None, returns_30d: int, already_returned: b
             why.append("the photo does not match what the customer said")
         if photo["signs_of_wear"] == "clear" and case["claimed_condition"] != "worn" and case["reason_category"] != "worn_once":
             why.append("the item shows clear signs of wear but was described as unworn")
+        if photo.get("same_item") == "no":
+            why.append("the photo looks like a different item from the one that was ordered")
         if photo["injection_text"]:
             why.append("the photo contains text that tries to instruct the system")
         if why:

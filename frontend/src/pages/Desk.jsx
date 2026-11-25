@@ -94,9 +94,10 @@ export default function Desk({ selected }) {
                           <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">wear: {cur.photo_check.signs_of_wear}</span>
                           <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">damage: {cur.photo_check.visible_damage ? "visible" : "none seen"}</span>
                           <span className="rounded-md bg-ivory px-2 py-0.5 ring-1 ring-line">tags: {cur.photo_check.tags_attached}</span>
+                          <span className={`rounded-md px-2 py-0.5 font-semibold ${cur.photo_check.same_item === "no" ? "bg-bad-bg text-bad" : cur.photo_check.same_item === "yes" ? "bg-ok-bg text-ok" : "bg-ivory ring-1 ring-line"}`}>same item as listing: {cur.photo_check.compared_with_listing ? cur.photo_check.same_item : "not compared"}</span>
                           <span className={`rounded-md px-2 py-0.5 font-semibold ${cur.photo_check.matches_claim === "no" ? "bg-bad-bg text-bad" : cur.photo_check.matches_claim === "yes" ? "bg-ok-bg text-ok" : "bg-ivory ring-1 ring-line"}`}>matches claim: {cur.photo_check.matches_claim}</span>
                         </div>
-                        <p className="mt-1.5 text-muted">{cur.photo_check.damage_description || cur.photo_check.notes}</p>
+                        <p className="mt-1.5 text-muted">{cur.photo_check.damage_description || cur.photo_check.notes}{cur.photo_check.same_item === "no" && cur.photo_check.item_difference ? ` Difference from the listing: ${cur.photo_check.item_difference}` : ""}</p>
                         <p className="mt-1 text-xs text-muted">The model only describes the photo. A mismatch can add risk points; it can never approve anything.</p>
                       </>
                     ) : <p className="mt-1 text-muted">{cur.photo_check?.detail || "Not analysed."}</p>}

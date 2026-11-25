@@ -8,6 +8,31 @@ from . import llm, cases, db, flagsmith_admin, flags, intel, languages, live, ph
 from . import config  # noqa: F401
 
 app = FastAPI(title="Festive Returns Desk")
+_listing_cache: dict = {}
+
+
+def listing_photo(order_id: str | None):
+    """The shop's own listing photo for the ordered item, as (bytes, mime), or None. Fetched on the server (the model needs the bytes), cached, never fatal."""
+    if not order_id:
+        return None
+    with db.conn() as c:
+        r = c.execute("SELECT p.image_urls FROM orders o JOIN products p ON (o.item_sku=p.sku OR o.item_sku LIKE p.sku||'-%') WHERE o.id=? LIMIT 1", (order_id,)).fetchone()
+    urls = json.loads(r[0] or "[]") if r else []
+    if not urls:
+        return None
+    u = urls[0]
+    if u in _listing_cache:
+        return _listing_cache[u]
+    import urllib.request
+    try:
+        req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/120 Safari/537.36"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            body, mime = resp.read(3_000_000 + 1), resp.headers.get_content_type()
+        out = (body, mime) if len(body) <= 3_000_000 and mime in ("image/jpeg", "image/png", "image/webp") else None
+    except Exception:
+        out = None
+    _listing_cache[u] = out
+    return out
 UPLOADS = ROOT / "data" / "uploads"
 db.init()
 
@@ -94,8 +119,10 @@ async def intake(audio: UploadFile = File(...), order_id: str | None = Form(defa
         photo_path = f"{uuid.uuid4().hex}.jpg"
         (UPLOADS / photo_path).write_bytes(jpeg)
         t0 = time.perf_counter()
-        check = photo_check.check(jpeg, fields["reason_category"], fields["claimed_condition"])
-        trace.append({"stage": "photo", "who": "ibm", "ms": cases._ms(t0), "detail": check.get("detail") or check.get("notes") or "photo checked", "status": check["status"]})
+        listing = listing_photo(order_id.strip().upper() if order_id else fields.get("order_id"))
+        check = photo_check.check(jpeg, fields["reason_category"], fields["claimed_condition"], listing)
+        check["compared_with_listing"] = bool(listing)
+        trace.append({"stage": "photo", "who": "ibm", "ms": cases._ms(t0), "detail": (check.get("detail") or ((check.get("notes") or "photo checked") + (f" Same item as the listing photo: {check.get('same_item')}." if check.get("compared_with_listing") else " Not compared with a listing photo."))), "status": check["status"]})
     lang = languages.get(detected)["code"]
     case = cases.create_case(fields, transcript, lang, trace, photo_path, check)
     reply = cases.REPLIES[case["decision"]][lang]

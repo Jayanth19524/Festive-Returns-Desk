@@ -48,6 +48,19 @@ class T(unittest.TestCase):
         self.assertEqual(base["decision"], "approve")
         self.assertEqual((r["decision"], r["score"]), ("hold", 30))
 
+    def test_a_different_item_adds_risk(self):
+        r = decide(CASE, ORDER, 0, False, CFG, {**OKPHOTO, "same_item": "no"})
+        self.assertEqual((r["decision"], r["score"]), ("hold", 30))
+        self.assertIn("different item", " ".join(r["reasons"]))
+
+    def test_unclear_or_missing_same_item_changes_nothing(self):
+        self.assertEqual(decide(CASE, ORDER, 0, False, CFG, {**OKPHOTO, "same_item": "unclear"})["decision"], "approve")
+        self.assertEqual(decide(CASE, ORDER, 0, False, CFG, OKPHOTO)["decision"], "approve")
+
+    def test_clean_keeps_same_item_values_only(self):
+        self.assertEqual(photo_check.clean({"same_item": "maybe"})["same_item"], "unclear")
+        self.assertEqual(photo_check.clean({"same_item": "no"})["same_item"], "no")
+
     def test_photo_can_never_lower_risk(self):
         worn = {**CASE, "reason_category": "worn_once", "claimed_condition": "worn"}
         self.assertEqual(decide(worn, ORDER, 0, False, CFG, OKPHOTO)["score"], decide(worn, ORDER, 0, False, CFG, None)["score"])
