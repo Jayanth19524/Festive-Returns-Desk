@@ -14,8 +14,12 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Voice intake (Saaras v4 -> Sarvam 105B -> Bulbul v4 Flash) in Gujarati / Hindi / Kannada / English | Works, tested on synthetic audio (see Limitations) |
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Owner screen and customer screen (React) | Works |
+| Return Intelligence (why customers return, what to fix, preventable share) | Works: plain database aggregation and fixed advice text, no LLM |
 | NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
 | Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). A real platform-authenticator registration and approval were also run once in the app's browser pane on the author's Mac (₹14,500 case released, ledger shows "owner (Touch ID)") |
+
+## Who it is for
+An **add-on for small sellers' existing stores** (Instagram, WhatsApp, Shopify or their own site), not a standalone shop. It handles the returns side: voice intake, a consistent decision, refund execution and an audit trail, plus Return Intelligence on why customers return. Marketplaces (Amazon, Flipkart, Myntra) run returns and refunds themselves, so this is not for them.
 
 ## Sponsors and their roles
 | Sponsor | Role in this app |

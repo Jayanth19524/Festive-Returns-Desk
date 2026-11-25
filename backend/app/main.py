@@ -203,3 +203,39 @@ def stats():
         held_value = c.execute("SELECT COALESCE(SUM(o.amount_inr),0) FROM cases k JOIN orders o ON o.id=k.order_id WHERE k.status='held'").fetchone()[0]
     return {"by_decision": by_decision, "by_status": by_status, "refunded_inr": refunded[0], "refund_count": refunded[1],
             "held_value_inr": held_value}
+
+
+# What each return reason tells the seller to fix. Plain rules, no LLM: the advice is the same every time.
+FIXES = {
+    "wrong_size": "Add garment measurements (bust, waist, length) and a size guide to every listing; ask for blouse measurements at checkout.",
+    "not_as_described": "Add photos in daylight and on a model, state the true colour name, and add a fabric and sheerness note.",
+    "damaged": "Check packaging and inspect items before dispatch; photograph each item when packing.",
+    "worn_once": "State the no-worn-items policy clearly on the listing and keep a tag the buyer must not remove.",
+    "changed_mind": "Offer exchange or store credit first; it keeps the sale and costs you less than a refund.",
+    "other": "Read the free-text reasons and group them.",
+}
+PREVENTABLE = ("wrong_size", "not_as_described")  # listing problems the seller can fix
+
+
+@app.get("/api/insights")
+def insights():
+    """Return Intelligence: why customers return, how much of it is preventable, and what to fix first."""
+    with db.conn() as c:
+        rows = c.execute("SELECT k.reason_category r, o.item item, o.amount_inr amt FROM cases k JOIN orders o ON o.id=k.order_id "
+                         "WHERE k.status!='seed_history'").fetchall()
+    total = len(rows)
+    by_reason, by_item = {}, {}
+    for r in rows:
+        x = by_reason.setdefault(r["r"], {"count": 0, "value_inr": 0})
+        x["count"] += 1; x["value_inr"] += r["amt"]
+        y = by_item.setdefault(r["item"], {"count": 0, "top_reason": {}})
+        y["count"] += 1; y["top_reason"][r["r"]] = y["top_reason"].get(r["r"], 0) + 1
+    reasons = sorted(({"reason": k, **v, "share_pct": round(100 * v["count"] / total, 1), "fix": FIXES.get(k, FIXES["other"])}
+                      for k, v in by_reason.items()), key=lambda d: -d["count"])
+    items = sorted(({"item": k, "count": v["count"], "main_reason": max(v["top_reason"], key=v["top_reason"].get)}
+                    for k, v in by_item.items()), key=lambda d: -d["count"])[:5]
+    prev = [r for r in rows if r["r"] in PREVENTABLE]
+    return {"total_returns": total, "reasons": reasons, "worst_items": items,
+            "preventable": {"count": len(prev), "value_inr": sum(r["amt"] for r in prev),
+                            "share_pct": round(100 * len(prev) / total, 1) if total else 0,
+                            "note": "Returns caused by listing problems (size or description): the part the seller can reduce."}}

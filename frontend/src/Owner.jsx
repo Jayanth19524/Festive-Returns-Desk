@@ -12,6 +12,7 @@ export default function Owner() {
   const { data: cases } = usePoll("/api/cases", 2000);
   const { data: wa } = usePoll("/api/webauthn/status", 4000);
   const { data: st } = usePoll("/api/stats", 2000);
+  const { data: ins } = usePoll("/api/insights", 5000);
   const touch = (id) => approveWithTouchId(id).catch((e) => alert("Touch ID approval failed: " + e.message));
   if (!panel) return <p>{error ? `Cannot reach the API: ${error}` : "Loading…"}</p>;
   const c = panel.config;
@@ -41,6 +42,25 @@ export default function Owner() {
             ["Rejected", st.by_decision.reject || 0], ["Refunded", inr(st.refunded_inr)], ["Waiting on you", inr(st.held_value_inr)]].map(([k, v]) => (
             <div key={k} className="rounded border bg-white p-2"><div className="text-xs text-stone-500">{k}</div><div className="text-lg font-bold">{v}</div></div>
           ))}
+        </section>
+      )}
+
+      {ins && ins.total_returns > 0 && (
+        <section className="rounded border bg-white p-4">
+          <h2 className="mb-1 font-semibold">Return Intelligence: what to fix</h2>
+          <p className="mb-3 text-sm text-stone-600">
+            {ins.preventable.share_pct}% of returns ({ins.preventable.count}, worth {inr(ins.preventable.value_inr)}) come from listing problems you can fix.
+          </p>
+          <div className="space-y-2">
+            {ins.reasons.slice(0, 3).map((r) => (
+              <div key={r.reason} className="text-sm">
+                <div className="flex justify-between"><b>{r.reason.replaceAll("_", " ")}</b><span>{r.count} returns · {r.share_pct}%</span></div>
+                <div className="h-2 rounded bg-stone-200"><div className="h-2 rounded bg-orange-600" style={{ width: `${r.share_pct}%` }} /></div>
+                <p className="mt-1 text-stone-600">Fix: {r.fix}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-stone-500">Most-returned items: {ins.worst_items.map((i) => `${i.item} (${i.count})`).join(", ")}</p>
         </section>
       )}
 
