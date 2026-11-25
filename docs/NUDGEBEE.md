@@ -6,8 +6,9 @@ routes on the decision stored in our database and calls back into our API, and N
 ```
 POST webhook {case_id, api_base, ...}
   -> get_case_id, get_api_base (data.transform)
-  -> validate_case   GET  {api}/api/workflow/cases/{id}/validate     (our DB says: approve | hold | reject | invalid)
-  -> route           core.switch on that decision
+  -> validate_case      GET  {api}/api/workflow/cases/{id}/validate  (our DB says: approve | hold | reject | invalid)
+  -> announce_decision  core.print
+  -> branch_on_decision core.switch on that decision
        approve -> issue_refund POST .../refund -> notify_approved
        hold    -> hold_case    POST .../hold   -> notify_held
        reject  -> reject_case  POST .../reject -> notify_rejected
@@ -18,6 +19,15 @@ The callback re-checks the stored decision and re-reads the Flagsmith freeze fla
 ## Deviation from the brief (tell the judges)
 The brief says the webhook body is at `Inputs.webhook_json`. On this install it arrived **empty**; only the raw text
 `Inputs.webhook_payload` came through. The workflow parses it with a `data.transform` (JSONata) task. Not documented behaviour, observed behaviour.
+
+## Lesson learned (cost an hour)
+Switch branch tasks must **not** list the switch in `depends_on`: the engine then fails with
+`missing dependencies detected: map[branch_on_decision-issue_refund:[branch_on_decision]]`. The `next` fields on the switch wire them. Tasks AFTER a branch
+task (the notify prints) may depend on it normally. The editor strips such `depends_on` itself, which is why a workflow that had been through the editor worked.
+
+## Status: done and run on this machine
+The workflow `garba-return-desk-final` is published (Active) and was run end to end for approve, hold and reject cases (all three branches), through a public cloudflared tunnel.
+Paused leftovers from the debugging (`garba-return-desk`, `-v2`, `-v3`) can be deleted in the UI.
 
 ## Steps that need the NudgeBee UI (about 10 minutes)
 1. Start the port-forward if it is not up:

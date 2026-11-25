@@ -14,7 +14,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Voice intake (Saaras v4 -> Sarvam 105B -> Bulbul v4 Flash) in Gujarati / Hindi / Kannada / English | Works, tested on synthetic audio (see Limitations) |
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Owner screen and customer screen (React) | Works |
-| NudgeBee workflow | Workflow file, callback API and guard are built and the callback side is tested. **The NudgeBee side needs ~10 UI steps by the owner (`docs/NUDGEBEE.md`); it had not been run when this was written.** |
+| NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
 | Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). **A real Touch ID prompt has not been exercised yet**: do the one-time registration on the owner screen and try it |
 
 ## Sponsors and their roles
@@ -42,7 +42,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
    5. callback re-checks the stored decision AND the live freeze flag, then writes the refund ledger
    6. Bulbul v4 Flash speaks the decision back
 ```
-Files: `backend/app/` (`risk.py` rule, `flags.py` Flagsmith, `webauthn_owner.py` Touch ID check, `sarvam_service.py`, `cases.py` lifecycle, `db.py` schema + seed, `nudgebee.py` webhook client, `main.py` routes), `frontend/src/` (`Owner.jsx`, `Customer.jsx`), `nudgebee/garba-return-desk.json`, `scripts/`.
+Files: `backend/app/` (`risk.py` rule, `flags.py` Flagsmith, `webauthn_owner.py` Touch ID check, `sarvam_service.py`, `cases.py` lifecycle, `db.py` schema + seed, `nudgebee.py` webhook client, `main.py` routes), `frontend/src/` (`Owner.jsx`, `Customer.jsx`), `nudgebee/garba-return-desk.json` (imported as `garba-return-desk-final`), `scripts/`.
 
 ## Setup
 Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
@@ -51,7 +51,7 @@ Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
 3. Create the flags: `python3 scripts/seed_flagsmith.py` (idempotent).
 4. Backend: `python3.11 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/uvicorn backend.app.main:app --port 8200`
 5. Frontend: `cd frontend && npm install && npm run dev` then open http://localhost:5174 (owner) and http://localhost:5174/#/customer. `localhost` is required for the microphone.
-6. **NudgeBee**: follow `docs/NUDGEBEE.md` (self-hosted Community, integration, secret, import `nudgebee/garba-return-desk.json`, public tunnel). Then `bash scripts/fire_webhook.sh`.
+6. **NudgeBee**: follow `docs/NUDGEBEE.md` (self-hosted Community, integration, secret, import `nudgebee/garba-return-desk.json` (imported as `garba-return-desk-final`), public tunnel). Then `bash scripts/fire_webhook.sh`.
 7. Check services: `python3 scripts/check_services.py`. Tests: `.venv/bin/python -m unittest backend.tests_risk backend.tests_webauthn -v`.
 
 Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_refund_limit_inr 1000`, `python3 scripts/set_flag.py refunds_enabled off`).
