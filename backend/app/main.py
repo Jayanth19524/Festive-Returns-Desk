@@ -185,3 +185,15 @@ def owner_approve_signed(cid: int, body: ApproveIn):
             db.log_event(c, cid, "owner_approve_blocked", f"signed approval rejected: {e}")
         raise HTTPException(403, f"signed approval rejected: {e}")
     return cases.owner_decide(cid, "approve", signed=True)
+
+
+@app.get("/api/stats")
+def stats():
+    """Numbers for the owner screen header (also what the surge simulator prints)."""
+    with db.conn() as c:
+        by_decision = {r[0]: r[1] for r in c.execute("SELECT decision, COUNT(*) FROM cases WHERE status!='seed_history' GROUP BY decision")}
+        by_status = {r[0]: r[1] for r in c.execute("SELECT status, COUNT(*) FROM cases WHERE status!='seed_history' GROUP BY status")}
+        refunded = c.execute("SELECT COALESCE(SUM(amount_inr),0), COUNT(*) FROM refunds").fetchone()
+        held_value = c.execute("SELECT COALESCE(SUM(o.amount_inr),0) FROM cases k JOIN orders o ON o.id=k.order_id WHERE k.status='held'").fetchone()[0]
+    return {"by_decision": by_decision, "by_status": by_status, "refunded_inr": refunded[0], "refund_count": refunded[1],
+            "held_value_inr": held_value}

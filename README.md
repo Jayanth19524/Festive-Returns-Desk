@@ -54,6 +54,8 @@ Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
 6. **NudgeBee**: follow `docs/NUDGEBEE.md` (self-hosted Community, integration, secret, import `nudgebee/garba-return-desk.json` (imported as `garba-return-desk-final`), public tunnel). Then `bash scripts/fire_webhook.sh`.
 7. Check services: `python3 scripts/check_services.py`. Tests: `.venv/bin/python -m unittest backend.tests_risk backend.tests_webauthn -v`.
 
+Simulate a returns surge (60 simulated orders, real NudgeBee runs, optional real voice): `.venv/bin/python scripts/simulate_surge.py --n 40 --voice 4`. A 20-return run settled in 19 s (4 auto-approved, 10 held, 6 rejected).
+
 Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_refund_limit_inr 1000`, `python3 scripts/set_flag.py refunds_enabled off`).
 
 ## Limitations (honest)

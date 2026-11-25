@@ -11,6 +11,7 @@ export default function Owner() {
   const { data: panel, error } = usePoll("/api/panel", 2000);
   const { data: cases } = usePoll("/api/cases", 2000);
   const { data: wa } = usePoll("/api/webauthn/status", 4000);
+  const { data: st } = usePoll("/api/stats", 2000);
   const touch = (id) => approveWithTouchId(id).catch((e) => alert("Touch ID approval failed: " + e.message));
   if (!panel) return <p>{error ? `Cannot reach the API: ${error}` : "Loading…"}</p>;
   const c = panel.config;
@@ -33,6 +34,15 @@ export default function Owner() {
           </ul>
         </div>
       </section>
+
+      {st && (
+        <section className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-5">
+          {[["Auto-approved", st.by_decision.approve || 0], ["Held for you", st.by_status.held || 0],
+            ["Rejected", st.by_decision.reject || 0], ["Refunded", inr(st.refunded_inr)], ["Waiting on you", inr(st.held_value_inr)]].map(([k, v]) => (
+            <div key={k} className="rounded border bg-white p-2"><div className="text-xs text-stone-500">{k}</div><div className="text-lg font-bold">{v}</div></div>
+          ))}
+        </section>
+      )}
 
       {wa && !wa.registered && (
         <div className="rounded border border-amber-500 bg-amber-50 p-3 text-sm">
@@ -59,7 +69,7 @@ export default function Owner() {
         <h2 className="mb-2 font-semibold">Case queue</h2>
         {!cases?.length && <p className="text-sm text-stone-500">No cases yet. Use the Customer screen, or run scripts/fire_webhook.sh.</p>}
         <div className="space-y-2">
-          {cases?.map((k) => (
+          {cases && [...cases].sort((a, b) => (b.status === "held") - (a.status === "held") || (b.order?.amount_inr || 0) - (a.order?.amount_inr || 0) || b.id - a.id).map((k) => (
             <details key={k.id} className="rounded border bg-white p-2 text-sm">
               <summary className="flex cursor-pointer flex-wrap items-center gap-2">
                 <span className="font-mono">#{k.id}</span><span className="font-mono">{k.order_id}</span>
