@@ -67,7 +67,7 @@ export default function Customer({ orderId }) {
         </div>
         <div className="border-b border-line px-6 py-5">
           <p className="text-sm font-semibold text-plum">Step 1 · Show us the item</p>
-          <p className="text-xs text-muted">A clear photo of the whole item (and the problem, if there is one).</p>
+          <p className="text-xs text-muted">A clear photo of the whole item (and the problem, if there is one). In this demo the photo may be analysed by an AI service: use a demo photo.</p>
           <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gold bg-ivory p-3 text-sm">
             {photo ? <img src={photo.url} alt="your item" className="h-16 w-16 rounded-lg object-cover" /> : <span className="flex h-16 w-16 items-center justify-center rounded-lg bg-gold-soft text-2xl">📷</span>}
             <span className="font-semibold">{photo ? "Change photo" : "Take or upload a photo"}</span>

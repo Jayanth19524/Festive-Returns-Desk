@@ -13,7 +13,7 @@ const NODES = {
   stt: { x: 520, y: 46, w: 128, h: 58, t: "Saaras v4", s: "speech to text", who: "sarvam" },
   llm: { x: 662, y: 46, w: 128, h: 58, t: "Sarvam 105B", s: "text to JSON only", who: "sarvam" },
   tts: { x: 804, y: 46, w: 128, h: 58, t: "Bulbul v4", s: "spoken reply", who: "sarvam" },
-  ibm: { x: 520, y: 386, w: 412, h: 40, t: "IBM Bob model", s: "photo check · AI action plan (never decides)", who: "ibm" },
+  ibm: { x: 520, y: 386, w: 412, h: 40, t: "Vision model (Gemini)", s: "photo check only · never decides", who: "ibm" },
   flags: { x: 520, y: 170, w: 412, h: 62, t: "Flagsmith · live rules", s: "refunds_enabled · limits · risk weight", who: "flagsmith" },
   nb: { x: 520, y: 268, w: 412, h: 112, t: "NudgeBee workflow", s: "validate → switch(approve|hold|reject) → HTTP callback → notify", who: "nudgebee" },
 };

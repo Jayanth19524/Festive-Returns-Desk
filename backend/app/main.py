@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from .config import ROOT
 from pydantic import BaseModel
-from . import bob, cases, db, flagsmith_admin, flags, intel, languages, live, photo_check, sarvam_service as sv, webauthn_owner
+from . import llm, cases, db, flagsmith_admin, flags, intel, languages, live, photo_check, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
 app = FastAPI(title="Festive Returns Desk")
@@ -47,7 +47,7 @@ def shop():
     live = db.get_meta("data_source") == "live"
     return {"season": os.getenv("FESTIVE_SEASON", "Navratri / Garba season"),
             "data_source": "live" if live else "demo", "store": db.get_meta("store_domain") if live else None,
-            "ai_configured": bob.configured(), "ai_model": bob.model_name() if bob.configured() else None,
+            "ai_configured": llm.configured(), "ai_model": llm.model_name() if llm.configured() else None,
             "shopify_configured": bool(os.getenv("SHOPIFY_SHOP_DOMAIN") and os.getenv("SHOPIFY_ACCESS_TOKEN"))}
 
 
@@ -629,7 +629,7 @@ def insights_ai():
     try:
         r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
                                          reasoning_effort=None, max_tokens=500, response_format={"type": "json_object"})
-        plan = bob.parse_json(r.choices[0].message.content)
+        plan = llm.parse_json(r.choices[0].message.content)
         text = json.dumps(plan, ensure_ascii=False)
         allowed = numbers_in(json.dumps(facts)) | {str(i) for i in range(0, 11)} | {"7", "30"}
         bad = sorted(n for n in numbers_in(text) if n not in allowed)
@@ -692,7 +692,7 @@ def live_brief():
     try:
         r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
                                          reasoning_effort=None, max_tokens=200, response_format={"type": "json_object"})
-        text = str(bob.parse_json(r.choices[0].message.content).get("text", ""))[:400]
+        text = str(llm.parse_json(r.choices[0].message.content).get("text", ""))[:400]
         allowed = numbers_in(json.dumps(facts)) | {str(i) for i in range(0, 11)}
         if numbers_in(text) - allowed:
             return {"text": None, "error": "brief used numbers not in our data and was discarded"}
@@ -774,7 +774,7 @@ def reply_draft(cid: int):
     try:
         r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
                                          reasoning_effort=None, max_tokens=400, response_format={"type": "json_object"})
-        text = str(bob.parse_json(r.choices[0].message.content).get("text", ""))[:700]
+        text = str(llm.parse_json(r.choices[0].message.content).get("text", ""))[:700]
     except Exception as e:
         raise HTTPException(502, f"could not draft a reply: {str(e)[:150]}")
     extra = numbers_in(text) - numbers_in(json.dumps(facts))

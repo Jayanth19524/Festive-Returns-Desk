@@ -3,7 +3,7 @@ Run: .venv/bin/python -m unittest backend.tests_photo -v"""
 import json, os, tempfile, unittest
 from pathlib import Path
 os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp()) / "photo_test.db"))
-from backend.app import bob, photo_check
+from backend.app import llm, photo_check
 from backend.app.risk import decide
 
 CFG = {"refunds_enabled": True, "auto_refund_limit_inr": 2000, "hold_above_inr": 8000, "max_returns_per_customer_30d": 2,
@@ -28,13 +28,13 @@ class T(unittest.TestCase):
         self.assertIn(r["status"], ("unavailable",))
 
     def test_fake_model_findings_flow_through(self):
-        real_cfg, real_chat = bob.configured, bob.chat
-        bob.configured = lambda: True
-        bob.chat = lambda *a, **k: '```json\n{"shows_garment": true, "matches_claim": "no", "signs_of_wear": "clear", "confidence": 0.9}\n```'
+        real_cfg, real_chat = llm.configured, llm.chat
+        llm.configured = lambda: True
+        llm.chat = lambda *a, **k: '```json\n{"shows_garment": true, "matches_claim": "no", "signs_of_wear": "clear", "confidence": 0.9}\n```'
         try:
             r = photo_check.check(b"\xff\xd8\xff", "wrong_size", "unworn")
         finally:
-            bob.configured, bob.chat = real_cfg, real_chat
+            llm.configured, llm.chat = real_cfg, real_chat
         self.assertEqual(r["status"], "ok"); self.assertEqual(r["matches_claim"], "no")
 
     def test_photo_mismatch_raises_risk_and_holds(self):

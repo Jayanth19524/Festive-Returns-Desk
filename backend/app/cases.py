@@ -207,7 +207,7 @@ def steps(cid: int) -> dict | None:
                     "detail": f"Structured case filed without voice: {case['reason_category']} on {case['order_id']}."})
     ph = tr.get("photo")
     if ph:
-        out.append({"key": "photo", "who": "ibm", "title": "Photo check · IBM Bob model" if ph.get("status") == "ok" else "Photo received (not analysed)",
+        out.append({"key": "photo", "who": "ibm", "title": "Photo check · vision model" if ph.get("status") == "ok" else "Photo received (not analysed)",
                     "ms": ph["ms"], "detail": ph.get("detail") or ""})
     f = tr.get("flags")
     out.append({"key": "flags", "who": "flagsmith", "title": "Read live rules · Flagsmith", "ms": f["ms"] if f else None,
