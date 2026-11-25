@@ -10,6 +10,13 @@ Connects small sellers' existing Shopify stores (or offline CSV exports) to **Fe
 
 You can run the sync either against a running Festive Returns Desk server or directly into the local SQLite database.
 
+### Option 0: Demo store (what the live demo uses)
+A simulated festive boutique with a story: 27 listings across Diwali, Navratri, Eid, Pongal and Christmas, 150 orders, a returns history and a few repeat
+returners. Listings without garment measurements are returned for size far more often (simulated, labelled as such). It goes through the real mapper.
+```bash
+python3 -m integrations.shopify.sync --source demo        # or the "Sync Shopify" button in the app, or "Reset demo data" (which reloads it)
+```
+
 ### Option A: Mock Mode (Recommended for testing)
 Imports pre-packaged simulated products and orders covering both **Diwali** and **Eid** collections:
 ```bash
@@ -44,6 +51,17 @@ To sync from a real Shopify development store:
    ```
 
 Re-running any of these commands is strictly **idempotent**: existing items are updated and no duplicate records are created.
+
+---
+
+## 1b. Live Shopify: what is verified and what is not (read before relying on it)
+Checked against shopify.dev on the build day (a read of the docs pages, no live store was available):
+- **API version:** the old default `2024-01` is no longer supported. Shopify supports each stable version for at least 12 months; supported when checked: `2026-01`, `2026-04`, `2026-07`, `2026-10` (latest). The client now defaults to `2026-04` and reads `SHOPIFY_API_VERSION` from `.env`.
+- **REST is legacy:** Shopify marks the REST Admin API as a legacy API (since 1 Oct 2024) and requires GraphQL for NEW public apps. A custom/private app is not covered by that sentence, but a migration to GraphQL is the safer long-term path.
+- **Not confirmed in the docs we could read:** `GET products.json` and `orders.json` for the current version, the `shpat_` token format, and `PUT orders/{id}.json` for tags. Also, new admin-created custom apps can no longer be created (new custom apps go through the Dev Dashboard).
+- **Never run against a real store here.** The connector's live path (`--source shopify`) is unit-tested only against mapped sample data. Treat it as UNVERIFIED until it has pulled from a real development store.
+- **Measurements:** a Shopify product has no measurement field. The mapper reads measurements from the description text (`Waist 74 cm`, `Length 5.5 m`, `Blouse bust 88 cm`) when the product has no `measurements` field. If a seller keeps them in metafields, that needs a small extension.
+- **Currency:** prices are taken as INR without checking the order currency.
 
 ---
 

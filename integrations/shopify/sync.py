@@ -142,6 +142,10 @@ def run_sync(
         raw_orders = load_csv(o_path)
         orders = [map_csv_order(o) for o in raw_orders]
 
+    elif source == "demo":   # the full simulated festive boutique, with a returns history (see demo_store.py)
+        from backend.app import db
+        return {"products_upserted": 0, "orders_upserted": 0, "dest": "db", **db.load_demo_store()}
+
     elif source == "mock":
         p_path = Path(products_file) if products_file else SAMPLE_DATA_DIR / "shopify_products_mock.json"
         o_path = Path(orders_file) if orders_file else SAMPLE_DATA_DIR / "shopify_orders_mock.json"
@@ -185,7 +189,7 @@ def run_sync(
 
 def main():
     parser = argparse.ArgumentParser(description="Sync Shopify products and orders into Festive Returns Desk.")
-    parser.add_argument("--source", choices=["shopify", "csv", "mock"], default="mock",
+    parser.add_argument("--source", choices=["shopify", "csv", "mock", "demo"], default="mock",
                         help="Data source: shopify (live API), csv (local files), or mock (sample JSON)")
     parser.add_argument("--dest", choices=["api", "db"], default="api",
                         help="Destination: api (HTTP ingest routes) or db (direct SQLite)")
@@ -207,7 +211,7 @@ def main():
             orders_file=args.orders_file,
             limit=args.limit
         )
-        print(f"\n[SUCCESS] Sync completed successfully: {result['products_upserted']} products, {result['orders_upserted']} orders.")
+        print(f"\n[SUCCESS] Sync completed successfully: {result}")
     except Exception as e:
         logger.error("Sync failed: %s", e)
         sys.exit(1)

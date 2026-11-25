@@ -1,5 +1,9 @@
 # Shopify integration: handoff for the teammate
 
+> **STATUS (updated):** the connector, ingest API, products table and a rich simulated demo store are built and merged on the `shopify` branch together with the
+> current app. Remaining and unverified: the live Shopify path (`integrations/shopify/README.md` section 1b), write-back of return tags, and GraphQL migration.
+
+
 You are building the **Shopify side**. The other teammate builds the **seller dashboard** in the same repo. This file is the
 contract between the two so you can work separately. Read it fully, then read `README.md` once.
 

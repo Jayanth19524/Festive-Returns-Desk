@@ -28,6 +28,26 @@ export default function Insights({ compact = false }) {
           ))}
         </div>
       </Card>
+      {!compact && ins.listings && (
+        <Card className="p-5">
+          <SectionTitle hint="from your synced Shopify store">Listings to fix first</SectionTitle>
+          <p className="mb-3 text-sm">
+            <b>{ins.listings.missing_measurements} of {ins.listings.total}</b> listings have no garment measurements. Wrong-size returns per order:
+            <b className="text-bad"> {ins.listings.size_return_rate_pct.without_measurements}%</b> without measurements vs
+            <b className="text-ok"> {ins.listings.size_return_rate_pct.with_measurements}%</b> with them.
+          </p>
+          <div className="divide-y divide-line text-sm">
+            {ins.listings.fix_first.map((f) => (
+              <div key={f.sku} className="flex flex-wrap items-center gap-2 py-2">
+                <span className="font-mono text-xs text-muted">{f.sku}</span><span className="min-w-40 flex-1">{f.title}</span>
+                <span className="num text-muted">{f.size_returns} wrong-size returns / {f.orders} orders</span>
+                <span className="rounded-md bg-warn-bg px-2 py-0.5 text-xs font-semibold text-warn">Add measurements</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-muted">{ins.listings.note} A baseline to measure against, not a claim that any return was prevented.</p>
+        </Card>
+      )}
       {!compact && (
         <Card className="p-5">
           <SectionTitle>Most-returned products</SectionTitle>

@@ -163,9 +163,40 @@ def upsert_orders(c, orders: list[dict]) -> int:
     return count
 
 
+def load_demo_store() -> dict:
+    """Load the SIMULATED Shopify demo store (listings, orders, a returns history, repeat returners). Idempotent."""
+    from integrations.shopify import demo_store
+    from integrations.shopify.mapper import map_shopify_order, map_shopify_product
+    raw_p, raw_o, history, repeat = demo_store.build()
+    init()
+    with conn() as c:
+        np_ = upsert_products(c, [map_shopify_product(p) for p in raw_p])
+        no_ = upsert_orders(c, [map_shopify_order(o) for o in raw_o])
+        added = 0
+        for h in history:   # past returns: they feed Return Intelligence but are not in the owner's queue (status 'history')
+            if c.execute("SELECT 1 FROM cases WHERE order_id=?", (h["order_id"],)).fetchone():
+                continue
+            at = (datetime.now(timezone.utc) - timedelta(days=h["days_ago"])).isoformat(timespec="seconds")
+            c.execute("INSERT INTO cases (order_id,customer_id,created_at,transcript,language,reason_category,claimed_condition,decision,score,reasons,"
+                      "flags_in_effect,signed_approval_required,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                      (h["order_id"], h["customer_id"], at, "(imported return history)", "en-IN", h["reason"], h["condition"],
+                       "reject" if h["reason"] == "worn_once" else "approve", 0, "[]", "{}", 0, "history"))
+            added += 1
+        for cust in repeat:  # three earlier returns this month -> the 'repeat returner' scenario
+            for d in (3, 9, 17):
+                oid = f"OLD-{cust}-{d}"
+                if not c.execute("SELECT 1 FROM cases WHERE order_id=?", (oid,)).fetchone():
+                    at = (datetime.now(timezone.utc) - timedelta(days=d)).isoformat(timespec="seconds")
+                    c.execute("INSERT INTO cases (order_id,customer_id,created_at,decision,status,reasons,flags_in_effect) VALUES (?,?,?,?,?,?,?)",
+                              (oid, cust, at, "approve", "seed_history", "[]", "{}"))
+    return {"products": np_, "orders": no_, "history_returns_added": added}
+
+
 def reset():
     DB_PATH.unlink(missing_ok=True)
     init()
+    if os.getenv("DEMO_STORE", "1") == "1":   # start every demo from the simulated Shopify store
+        load_demo_store()
 
 
 def returns_30d(c, customer_id) -> int:

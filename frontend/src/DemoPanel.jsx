@@ -41,7 +41,8 @@ export default function DemoPanel() {
           )}
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Data</p>
-          <div className="mt-1 flex gap-1.5">
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Sync Shopify (simulated)", () => post("/api/demo/shopify-sync"))}>Sync Shopify store</Button>
             <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Reset data", () => post("/api/demo/reset"))}>Reset demo data</Button>
           </div>
           {note && <p className="mt-3 rounded-lg bg-ivory p-2 text-xs text-muted">{note}</p>}

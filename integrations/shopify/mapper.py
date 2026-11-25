@@ -68,6 +68,29 @@ def strip_html(html_str: str) -> str:
     return " ".join(clean.split()).strip()
 
 
+_MEASURE = [  # (key, regex): "Waist: 74 cm", "Blouse bust 88 cm", "Length 5.5 m" ...
+    ("blouse_bust_cm", r"blouse\s*(?:bust|chest)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("waist_cm", r"waist\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("bust_cm", r"(?<!blouse )bust\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("chest_cm", r"(?<!blouse )chest\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("shoulder_cm", r"shoulder\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("length_cm", r"length\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*cm"),
+    ("length_m", r"length\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*m(?:etres?|eters?)?\b"),
+]
+
+
+def parse_measurements(text: str) -> Dict[str, float]:
+    """Pull garment measurements out of listing text. Heuristic: a Shopify product has no measurement field of its own,
+    so sellers usually type them into the description. Anything not found is simply missing (and reported as such)."""
+    found: Dict[str, float] = {}
+    low = (text or "").lower()
+    for key, rx in _MEASURE:
+        m = re.search(rx, low)
+        if m:
+            found[key] = float(m.group(1)) if "." in m.group(1) else int(m.group(1))
+    return found
+
+
 def map_shopify_product(raw: Dict[str, Any]) -> Dict[str, Any]:
     """Map a Shopify Admin REST product object into the contract Product shape."""
     variants = raw.get("variants") or []
@@ -102,7 +125,7 @@ def map_shopify_product(raw: Dict[str, Any]) -> Dict[str, Any]:
     description = strip_html(raw.get("body_html") or raw.get("description") or "")
 
     # Measurements: incomplete by default unless explicitly supplied in metafields/mock
-    measurements = raw.get("measurements") or {}
+    measurements = raw.get("measurements") or parse_measurements(description)
 
     return {
         "sku": sku,

@@ -3,12 +3,13 @@ import usePoll from "./usePoll.js";
 import Overview from "./pages/Overview.jsx";
 import Desk from "./pages/Desk.jsx";
 import Insights from "./pages/Insights.jsx";
+import Catalogue from "./pages/Catalogue.jsx";
 import Architecture from "./pages/Architecture.jsx";
 import Customer from "./pages/Customer.jsx";
 import DemoPanel from "./DemoPanel.jsx";
 
 const NAV = [
-  ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["insights", "Return intelligence", "◔"],
+  ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["catalogue", "Store catalogue", "▦"], ["insights", "Return intelligence", "◔"],
   ["architecture", "How it works", "⌘"], ["customer", "Customer view", "☎"],
 ];
 
@@ -58,9 +59,10 @@ export default function App() {
         <div className="mx-auto max-w-6xl p-4 lg:p-8">
           {route === "" && <Overview />}
           {route === "desk" && <Desk selected={arg ? Number(arg) : null} />}
+          {route === "catalogue" && <Catalogue />}
           {route === "insights" && <Insights />}
           {route === "architecture" && <Architecture />}
-          {route === "customer" && <Customer />}
+          {route === "customer" && <Customer orderId={arg} />}
         </div>
       </main>
       <DemoPanel />

@@ -6,8 +6,10 @@ Flagsmith (8000) and NudgeBee (3000) up. Click **Demo controls -> Reset demo dat
 Have NudgeBee's Executions tab and the Flagsmith dashboard open in two other tabs.
 
 1. **Problem (30 s).** Open **How it works**. Read the problem card: one seller, a festival rush, wrong-size / "worn once" / damage returns, regional languages, fraud, and why an AI that decides refunds is dangerous.
-2. **Voice in a regional language (60 s).** **Customer view** -> tap the mic -> say in Gujarati/Hindi/Kannada: "My order is GRD-2002, the size is wrong, I have not worn it." The screen shows what we heard, the decision and plays the spoken reply (Sarvam).
+2. **Voice in a regional language (60 s).** **Customer view** -> tap the mic -> say in Gujarati/Hindi/Kannada: "My order is SHP-2002, the size is wrong, I have not worn it." The screen shows what we heard, the decision and plays the spoken reply (Sarvam).
 3. **See where everything is used (60 s).** **How it works** -> pick that case in the live architecture. Press Play: customer -> Saaras STT -> Sarvam 105B -> Flagsmith -> risk.py -> NudgeBee -> callback -> ledger -> Bulbul. Each step shows the sponsor, the milliseconds and what happened. Point at the sponsor cards underneath.
+3b. **Connect the store (45 s).** **Store catalogue** shows the simulated Shopify boutique: 27 listings across Diwali, Navratri, Eid, Pongal and Christmas, which ones have no garment measurements, and personal return links per order (copy one and open it: the customer only has to say why). Press "Sync Shopify" to show the connection step.
+3c. **Learn from returns (30 s).** **Return intelligence** -> "Listings to fix first": wrong-size returns per order without vs with measurements, and the exact listings to fix (simulated baseline).
 4. **Live Flagsmith change (45 s).** **Command centre** -> "What would happen right now". In the Flagsmith dashboard change `auto_refund_limit_inr` 2000 -> 1000: rows flip in about 2 s. (Or use Demo controls.) Change it back.
 5. **Freeze switch (30 s).** Turn `refunds_enabled` OFF: the top bar turns red, every case becomes "Needs you". Turn it back on.
 6. **NudgeBee run (45 s).** Demo controls -> "Clean return", then show the run in NudgeBee Executions (validate, switch, HTTP callback, notify) and the refund in the case's audit trail.

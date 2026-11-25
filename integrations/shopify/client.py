@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-API_VERSION = "2024-01"
+API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2026-04")  # 2024-01 is out of support; Shopify supports each version ~12 months
 
 
 class ShopifyAPIError(Exception):

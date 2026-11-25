@@ -1,6 +1,11 @@
 """Automated tests for Shopify integration: mapping, idempotency, festival neutrality, and returns creation."""
 import os
+import tempfile
 import unittest
+from pathlib import Path
+
+# These tests call db.reset(), which deletes the database file: point them at a throw-away one BEFORE the app is imported.
+os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp()) / "shopify_test.db"))
 from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 

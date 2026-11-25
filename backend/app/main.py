@@ -1,6 +1,6 @@
 """FastAPI app for Festive Returns Desk. All data is SIMULATED."""
-import base64, hmac, os, time
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
+import base64, hmac, json, os, time
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from . import cases, db, flagsmith_admin, flags, languages, sarvam_service as sv, webauthn_owner
@@ -17,6 +17,13 @@ async def tunnel_guard(request: Request, call_next):
     if request.headers.get("cf-connecting-ip") and not request.url.path.startswith("/api/workflow/"):
         return JSONResponse({"detail": "not available through the public tunnel"}, status_code=403)
     return await call_next(request)
+
+
+def demo_only():
+    if os.getenv("DEMO_CONTROLS") != "1":
+        raise HTTPException(403, "demo controls are off (set DEMO_CONTROLS=1 in .env)")
+
+
 
 
 class CaseIn(BaseModel):
@@ -51,7 +58,7 @@ def panel():
 
 
 @app.post("/api/intake")
-async def intake(audio: UploadFile = File(...)):
+async def intake(audio: UploadFile = File(...), order_id: str | None = Form(default=None)):
     """Customer's spoken reason -> transcript -> structured case -> decision -> spoken reply."""
     data = await audio.read()
     trace = []
@@ -68,6 +75,8 @@ async def intake(audio: UploadFile = File(...)):
         raise
     except Exception as e:
         raise HTTPException(502, f"Sarvam call failed: {str(e)[:300]}")
+    if order_id:  # the customer opened their personal return link, so the order is known: no need to hear it
+        fields["order_id"] = order_id.strip().upper()
     lang = languages.get(detected)["code"]
     case = cases.create_case(fields, transcript, lang, trace)
     reply = cases.REPLIES[case["decision"]][lang]
@@ -92,7 +101,7 @@ def create_case(body: CaseIn):
 @app.get("/api/cases")
 def list_cases():
     with db.conn() as c:
-        ids = [r[0] for r in c.execute("SELECT id FROM cases WHERE status!='seed_history' ORDER BY id DESC LIMIT 50")]
+        ids = [r[0] for r in c.execute("SELECT id FROM cases WHERE status NOT IN ('seed_history','history') ORDER BY id DESC LIMIT 50")]
         return [cases.get(c, i) for i in ids]
 
 
@@ -230,7 +239,7 @@ def workflow_validate(cid: int):
     """Workflow step 1: does the case exist and is it waiting for execution? The decision comes from OUR database."""
     with db.conn() as c:
         case = cases.get(c, cid)
-        if not case or case["status"] == "seed_history":
+        if not case or case["status"] in ("seed_history", "history"):
             return {"ok": False, "decision": "invalid", "reason": "case not found"}
         ok = case["status"] == "awaiting_workflow" and not case["refund"]
         db.log_event(c, cid, "workflow_validate", f"ok={ok} decision={case['decision']} status={case['status']}")
@@ -304,8 +313,8 @@ def owner_approve_signed(cid: int, body: ApproveIn):
 def stats():
     """Numbers for the owner screen header (also what the surge simulator prints)."""
     with db.conn() as c:
-        by_decision = {r[0]: r[1] for r in c.execute("SELECT decision, COUNT(*) FROM cases WHERE status!='seed_history' GROUP BY decision")}
-        by_status = {r[0]: r[1] for r in c.execute("SELECT status, COUNT(*) FROM cases WHERE status!='seed_history' GROUP BY status")}
+        by_decision = {r[0]: r[1] for r in c.execute("SELECT decision, COUNT(*) FROM cases WHERE status NOT IN ('seed_history','history') GROUP BY decision")}
+        by_status = {r[0]: r[1] for r in c.execute("SELECT status, COUNT(*) FROM cases WHERE status NOT IN ('seed_history','history') GROUP BY status")}
         refunded = c.execute("SELECT COALESCE(SUM(amount_inr),0), COUNT(*) FROM refunds").fetchone()
         held_value = c.execute("SELECT COALESCE(SUM(o.amount_inr),0) FROM cases k JOIN orders o ON o.id=k.order_id WHERE k.status='held'").fetchone()[0]
     return {"by_decision": by_decision, "by_status": by_status, "refunded_inr": refunded[0], "refund_count": refunded[1],
@@ -324,12 +333,48 @@ FIXES = {
 PREVENTABLE = ("wrong_size", "not_as_described")  # listing problems the seller can fix
 
 
+def _listings(c):
+    """Per listing: orders, returns (incl. imported history), return rate, main reason, and whether measurements are missing."""
+    out = {}
+    for p in c.execute("SELECT * FROM products"):
+        meas = json.loads(p["measurements"] or "{}")
+        out[p["sku"]] = {"sku": p["sku"], "title": p["title"], "season": p["season"], "category": p["category"], "price_inr": p["price_inr"],
+                         "sizes": json.loads(p["sizes"] or "[]"), "measurements": meas, "missing_measurements": not meas,
+                         "orders": 0, "returns": 0, "reasons": {}}
+    by_order = {r["order_id"]: r["reason_category"] for r in c.execute("SELECT order_id, reason_category FROM cases WHERE status!='seed_history'")}
+    for o in c.execute("SELECT id, item_sku FROM orders WHERE item_sku IS NOT NULL"):
+        # an order's SKU may be a variant SKU such as LEH-204-M
+        sku = o["item_sku"] if o["item_sku"] in out else next((k for k in out if o["item_sku"].startswith(k + "-")), None)
+        if not sku:
+            continue
+        out[sku]["orders"] += 1
+        if o["id"] in by_order:
+            out[sku]["returns"] += 1
+            out[sku]["reasons"][by_order[o["id"]]] = out[sku]["reasons"].get(by_order[o["id"]], 0) + 1
+    for v in out.values():
+        v["return_rate_pct"] = round(100 * v["returns"] / v["orders"], 1) if v["orders"] else 0
+        v["main_reason"] = max(v["reasons"], key=v["reasons"].get) if v["reasons"] else None
+        v["size_returns"] = v["reasons"].get("wrong_size", 0)
+    return list(out.values())
+
+
+@app.get("/api/catalogue")
+def catalogue():
+    """The synced store: every listing with its measurement completeness and return history."""
+    with db.conn() as c:
+        items = _listings(c)
+    items.sort(key=lambda v: (-(v["size_returns"] if v["missing_measurements"] else 0), -v["returns"]))
+    return {"listings": items, "seasons": sorted({v["season"] for v in items if v["season"]}),
+            "incomplete": sum(v["missing_measurements"] for v in items), "total": len(items)}
+
+
 @app.get("/api/insights")
 def insights():
-    """Return Intelligence: why customers return, how much of it is preventable, and what to fix first."""
+    """Return Intelligence: why customers return, how much is preventable, which listings to fix first, and a historical baseline."""
     with db.conn() as c:
         rows = c.execute("SELECT k.reason_category r, o.item item, o.amount_inr amt FROM cases k JOIN orders o ON o.id=k.order_id "
                          "WHERE k.status!='seed_history'").fetchall()
+        listings = _listings(c)
     total = len(rows)
     by_reason, by_item = {}, {}
     for r in rows:
@@ -342,10 +387,48 @@ def insights():
     items = sorted(({"item": k, "count": v["count"], "main_reason": max(v["top_reason"], key=v["top_reason"].get)}
                     for k, v in by_item.items()), key=lambda d: -d["count"])[:5]
     prev = [r for r in rows if r["r"] in PREVENTABLE]
-    return {"total_returns": total, "reasons": reasons, "worst_items": items,
-            "preventable": {"count": len(prev), "value_inr": sum(r["amt"] for r in prev),
-                            "share_pct": round(100 * len(prev) / total, 1) if total else 0,
-                            "note": "Returns caused by listing problems (size or description): the part the seller can reduce."}}
+    out = {"total_returns": total, "reasons": reasons, "worst_items": items,
+           "preventable": {"count": len(prev), "value_inr": sum(r["amt"] for r in prev),
+                           "share_pct": round(100 * len(prev) / total, 1) if total else 0,
+                           "note": "Returns caused by listing problems (size or description): the part the seller can reduce."}}
+    if listings:  # product-level view (needs a synced store)
+        miss = [v for v in listings if v["missing_measurements"]]
+        have = [v for v in listings if not v["missing_measurements"]]
+        rate = lambda g: round(100 * sum(v["size_returns"] for v in g) / max(1, sum(v["orders"] for v in g)), 1)
+        fix = sorted((v for v in miss if v["size_returns"]), key=lambda v: -v["size_returns"])
+        out["listings"] = {
+            "total": len(listings), "missing_measurements": len(miss),
+            "size_return_rate_pct": {"without_measurements": rate(miss), "with_measurements": rate(have)},
+            "fix_first": [{"sku": v["sku"], "title": v["title"], "season": v["season"], "orders": v["orders"], "size_returns": v["size_returns"],
+                           "return_rate_pct": v["return_rate_pct"]} for v in fix[:8]],
+            "note": "Historical baseline on simulated data: wrong-size returns per order, listings without vs with garment measurements."}
+    return out
+
+
+@app.get("/api/orders")
+def list_orders(limit: int = 40):
+    """Recent synced orders (most recently delivered first) and whether each already has a return, for the 'return link' list."""
+    with db.conn() as c:
+        rows = c.execute("SELECT o.id, o.item, o.item_sku, o.amount_inr, o.delivered_days_ago, "
+                         "EXISTS(SELECT 1 FROM cases k WHERE k.order_id=o.id AND k.status!='seed_history') AS returned "
+                         "FROM orders o WHERE o.source='shopify' ORDER BY o.delivered_days_ago ASC, o.id LIMIT ?", (limit,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+@app.get("/api/orders/{oid}")
+def one_order(oid: str):
+    """What the customer sees after opening their return link: just the item, price and delivery."""
+    with db.conn() as c:
+        r = c.execute("SELECT id, item, item_sku, amount_inr, delivered_days_ago FROM orders WHERE id=?", (oid.upper(),)).fetchone()
+    if not r:
+        raise HTTPException(404, "order not found")
+    return dict(r)
+
+
+@app.post("/api/demo/shopify-sync", dependencies=[Depends(demo_only)])
+def demo_shopify_sync():
+    """'Connect store' button: load the simulated Shopify store (same mapper as a live sync). Idempotent."""
+    return db.load_demo_store()
 
 
 @app.get("/api/cases/{cid}/steps")
@@ -358,11 +441,6 @@ def case_steps(cid: int):
 
 
 # ---- Demo controls (local only: the tunnel guard blocks these; refuse unless DEMO_CONTROLS=1) ----
-def demo_only():
-    if os.getenv("DEMO_CONTROLS") != "1":
-        raise HTTPException(403, "demo controls are off (set DEMO_CONTROLS=1 in .env)")
-
-
 class FlagIn(BaseModel):
     name: str
     value: str
@@ -403,7 +481,7 @@ def demo_scenario(name: str):
     cond, reason, claimed, words = SCENARIOS[name]
     with db.conn() as c:
         row = c.execute(f"SELECT o.id FROM orders o WHERE {cond} AND o.id NOT IN (SELECT order_id FROM cases WHERE status!='seed_history') "
-                        "ORDER BY o.id LIMIT 1").fetchone()
+                        "ORDER BY CASE WHEN o.source='shopify' THEN 0 ELSE 1 END, o.id LIMIT 1").fetchone()
     if not row:
         raise HTTPException(409, "no free simulated order left for this scenario (reset the demo data)")
     text = words.format(id=row[0])
