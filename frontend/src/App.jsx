@@ -4,6 +4,7 @@ import Overview from "./pages/Overview.jsx";
 import Desk from "./pages/Desk.jsx";
 import Insights from "./pages/Insights.jsx";
 import Catalogue from "./pages/Catalogue.jsx";
+import Live from "./pages/Live.jsx";
 import Architecture from "./pages/Architecture.jsx";
 import Customer from "./pages/Customer.jsx";
 import Shop, { MyOrders, Placed, StoreShell } from "./pages/Shop.jsx";
@@ -11,7 +12,7 @@ import DemoPanel from "./DemoPanel.jsx";
 import { ShopContext } from "./ui.jsx";
 
 const NAV = [
-  ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["catalogue", "Store catalogue", "▦"], ["insights", "Return intelligence", "◔"],
+  ["", "Command centre", "◧"], ["live", "Live monitor", "◉"], ["desk", "Returns desk", "☰"], ["catalogue", "Store catalogue", "▦"], ["insights", "Return intelligence", "◔"],
   ["architecture", "How it works", "⌘"], ["shop", "Demo store ↗", "🛍"],
 ];
 
@@ -71,6 +72,7 @@ export default function App() {
         <div className="mx-auto max-w-6xl p-4 lg:p-8">
           {route === "" && <Overview />}
           {route === "desk" && <Desk selected={arg ? Number(arg) : null} />}
+          {route === "live" && <Live />}
           {route === "catalogue" && <Catalogue />}
           {route === "insights" && <Insights />}
           {route === "architecture" && <Architecture />}

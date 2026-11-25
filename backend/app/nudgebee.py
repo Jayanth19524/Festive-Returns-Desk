@@ -5,6 +5,8 @@ from .config import ROOT
 
 
 def dispatch(case_id: int, res: dict, order: dict | None, language: str) -> dict:
+    if os.getenv("FRD_TESTING") == "1":   # unit tests: never start a real workflow
+        return {"sent": False, "detail": "disabled in tests"}
     load_dotenv(ROOT / ".env", override=True)  # pick up a new tunnel address without restarting the API
     url = os.getenv("NUDGEBEE_WEBHOOK_URL", "")
     api_base = os.getenv("PUBLIC_API_BASE_URL", "").rstrip("/")

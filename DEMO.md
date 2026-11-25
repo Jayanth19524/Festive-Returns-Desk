@@ -1,4 +1,17 @@
-# Festive Returns Desk: live demo script (about 5 minutes). Everything is SIMULATED.
+# Festive Returns Desk: live demo script
+
+## A. The 3-minute "intelligence in real time" run (best for a screen recording)
+Open **Live monitor** (`#/live`). Everything you will see is real: customers file returns through Sarvam (every 4th one is spoken in Gujarati, Hindi or Kannada), Flagsmith decides the limits, and each case starts a NudgeBee workflow.
+1. **0:00** Press **▶ Start festive-rush simulation**. Say: "a normal day, a few returns, the pace line is flat and green."
+2. **~0:50** The banner turns red: **Surge**. The pace line crosses the dashed surge level. Say: "a post-festival rush: returns are arriving much faster than usual and the owner's queue is filling up."
+3. **~1:00** The right column fills with **What to do now**: a plain-words brief from Sarvam 105B, and flag suggestions. Each says what it will do and shows a computed effect ("3 worn-item returns would be rejected..."). The big one at the peak is **Freeze refunds** (`refunds_enabled`).
+4. **~1:15** Press **Apply in Flagsmith** on one suggestion. Say: "this changes the real Flagsmith flag; the next customers follow it." Open **Returns desk** on any new case: its "Flagsmith values at that moment" show the new number.
+5. **~1:40** Back on the monitor, the new returns (the "After you act" phase) are decided under the new rule. Press **Undo** to restore the flag.
+6. Press **Open NudgeBee runs** and show the stream of workflow executions, one per customer.
+All six flags in this demo: `refunds_enabled`, `auto_refund_limit_inr`, `max_returns_per_customer_30d` and `wardrobing_keywords_risk_weight` appear as live suggestions; `hold_above_inr` is shown by the Touch ID case on the Returns desk (a ₹14,500 return); `photo_mismatch_risk_weight` only does something when a photo model is connected (not yet), so do not claim it live.
+**To record on a Mac:** press Cmd+Shift+5, choose "Record Selected Portion" (or the whole screen), click Record, run the steps, press the stop button in the menu bar. Hide the "Demo controls" button first. Before each take: `curl -X POST localhost:8200/api/demo/reset` (this also clears the Touch ID key) and make sure `./scripts/tunnel.sh` shows a working tunnel.
+
+## B. The full walkthrough (about 5 minutes). Everything is SIMULATED.
 
 **Before you start:** `./scripts/tunnel.sh` (NudgeBee needs the public tunnel; run it again if a case stays "Workflow running"),
 API on 8200 (`.venv/bin/uvicorn backend.app.main:app --port 8200`), `cd frontend && npm run dev` -> http://localhost:5174,

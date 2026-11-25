@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from .config import ROOT
 from pydantic import BaseModel
-from . import bob, cases, db, flagsmith_admin, flags, intel, languages, photo_check, sarvam_service as sv, webauthn_owner
+from . import bob, cases, db, flagsmith_admin, flags, intel, languages, live, photo_check, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
 app = FastAPI(title="Festive Returns Desk")
@@ -638,4 +638,58 @@ def insights_ai():
     except Exception as e:
         return {"configured": True, "plan": None, "error": str(e)[:200]}
     _ai_cache[key] = out
+    return out
+
+
+# ---- Live intelligence: pace of returns, surge detection, flag suggestions, and the customer simulator ----
+@app.get("/api/live")
+def live_state():
+    return live.snapshot()
+
+
+@app.get("/api/live/suggestions")
+def live_suggestions():
+    """Ranked Flagsmith changes with their computed effect on the returns that just arrived (see live.py)."""
+    return live.suggest()
+
+
+@app.post("/api/demo/stream/start", dependencies=[Depends(demo_only)])
+def stream_start():
+    return live.start()
+
+
+@app.post("/api/demo/stream/stop", dependencies=[Depends(demo_only)])
+def stream_stop():
+    return live.stop()
+
+
+_brief_cache: dict = {}
+
+
+@app.get("/api/live/brief")
+def live_brief():
+    """Two sentences from Sarvam 105B on what is happening and the first thing to do. Numbers must come from our facts (same guard as the weekly brief)."""
+    snap, sug = live.snapshot(), live.suggest()
+    facts = {"returns_in_last_minute": snap["in_window"], "surge_level": snap["surge_at"], "surge": snap["surge"], "waiting_for_owner": snap["waiting"],
+             "waiting_value_inr": snap["waiting_inr"], "refunds_on": snap["refunds_enabled"],
+             "suggested_flag_changes": [{"flag": x["flag"], "from": x["current"], "to": x["proposed"], "effect": x["effect"]} for x in sug[:2]]}
+    if not snap["last5"]["returns"]:
+        return {"text": None}
+    key = hashlib.sha256(json.dumps(facts, sort_keys=True).encode()).hexdigest()
+    if key in _brief_cache:
+        return _brief_cache[key]
+    prompt = ("You are watching a small festive-wear shop's returns desk live. Using ONLY the JSON facts, write TWO short sentences in simple English: "
+              "what is happening right now, and the first thing the owner should do (name the Flagsmith flag if one is suggested). "
+              'Do NOT write any number that is not in the JSON. Return ONLY JSON: {"text": string (max 45 words)}.\n\nFACTS: ' + json.dumps(facts))
+    try:
+        r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
+                                         reasoning_effort=None, max_tokens=200, response_format={"type": "json_object"})
+        text = str(bob.parse_json(r.choices[0].message.content).get("text", ""))[:400]
+        allowed = numbers_in(json.dumps(facts)) | {str(i) for i in range(0, 11)}
+        if numbers_in(text) - allowed:
+            return {"text": None, "error": "brief used numbers not in our data and was discarded"}
+        out = {"text": text, "model": "Sarvam 105B"}
+    except Exception as e:
+        return {"text": None, "error": str(e)[:160]}
+    _brief_cache[key] = out
     return out

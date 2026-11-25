@@ -2,6 +2,8 @@
 Run: .venv/bin/python -m unittest integrations.shopify.test_demo_store -v"""
 import os
 import tempfile
+
+os.environ["FRD_TESTING"] = "1"
 import unittest
 from pathlib import Path
 

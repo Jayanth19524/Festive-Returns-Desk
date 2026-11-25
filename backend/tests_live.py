@@ -1,0 +1,52 @@
+"""Live monitor: surge detection and the counterfactual flag suggestions. Run: .venv/bin/python -m unittest backend.tests_live -v
+Uses a throw-away database and never starts a NudgeBee run."""
+import os, tempfile, unittest
+from pathlib import Path
+os.environ["FRD_TESTING"] = "1"
+os.environ.setdefault("DB_PATH", str(Path(tempfile.mkdtemp()) / "live_test.db"))
+from backend.app import cases, db, flags, live
+
+CFG = {"refunds_enabled": True, "auto_refund_limit_inr": 2000, "hold_above_inr": 8000, "max_returns_per_customer_30d": 2,
+       "wardrobing_risk_weight": 40, "photo_risk_weight": 30}
+
+
+class T(unittest.TestCase):
+    def setUp(self):
+        self._load = flags.load
+        flags.load = lambda: {"cfg": dict(CFG), "flags": {}, "status": "test", "live": True}
+        db.reset()
+
+    def tearDown(self):
+        flags.load = self._load
+
+    def _file(self, n, reason, cond):
+        with db.conn() as c:
+            orders = [r[0] for r in c.execute("SELECT o.id FROM orders o WHERE o.source IN ('shopify','demo-store') AND o.delivered_days_ago<=15 "
+                                              "AND o.customer_id NOT IN (SELECT customer_id FROM cases WHERE status='seed_history') "
+                                              "AND o.id NOT IN (SELECT order_id FROM cases WHERE status!='seed_history') ORDER BY o.id LIMIT ?", (n,))]
+        for oid in orders:
+            cases.create_case({"order_id": oid, "reason_category": reason, "claimed_condition": cond}, "t", "en-IN")
+        return len(orders)
+
+    def test_calm_means_no_suggestions_and_no_surge(self):
+        self._file(2, "wrong_size", "unworn")
+        s = live.snapshot()
+        self.assertFalse(s["surge"]); self.assertEqual(live.suggest(), [])
+
+    def test_surge_is_detected_by_pace(self):
+        self._file(live.SURGE_AT, "wrong_size", "unworn")
+        self.assertTrue(live.snapshot()["surge"])
+
+    def test_wardrobing_suggestion_is_computed_not_guessed(self):
+        self._file(4, "worn_once", "worn"); self._file(2, "wrong_size", "unworn")
+        s = next(x for x in live.suggest() if x["flag"] == "wardrobing_keywords_risk_weight")
+        self.assertGreater(s["proposed"], s["current"])
+        self.assertIn("rejected", s["effect"])
+
+    def test_freeze_is_suggested_only_at_twice_the_surge_level(self):
+        self._file(live.SURGE_AT, "wrong_size", "unworn")
+        self.assertFalse(any(x["flag"] == "refunds_enabled" for x in live.suggest()))
+        self._file(live.SURGE_AT, "wrong_size", "unworn")
+        self.assertTrue(any(x["flag"] == "refunds_enabled" for x in live.suggest()))
+
+if __name__ == "__main__": unittest.main()

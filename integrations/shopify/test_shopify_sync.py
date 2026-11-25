@@ -1,6 +1,8 @@
 """Automated tests for Shopify integration: mapping, idempotency, festival neutrality, and returns creation."""
 import os
 import tempfile
+
+os.environ["FRD_TESTING"] = "1"   # never trigger the real NudgeBee workflow from tests
 import unittest
 from pathlib import Path
 
