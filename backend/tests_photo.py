@@ -23,9 +23,13 @@ class T(unittest.TestCase):
         self.assertEqual(len(d["notes"]), 200)
 
     def test_no_key_says_so(self):
-        os.environ.pop("BOB_API_KEY", None)
-        r = photo_check.check(b"\xff\xd8\xff", "wrong_size", "unworn")
-        self.assertIn(r["status"], ("unavailable",))
+        real = llm.configured
+        llm.configured = lambda: False          # never depend on (or spend) the real key in .env
+        try:
+            r = photo_check.check(b"\xff\xd8\xff", "wrong_size", "unworn")
+        finally:
+            llm.configured = real
+        self.assertEqual(r["status"], "unavailable")
 
     def test_fake_model_findings_flow_through(self):
         real_cfg, real_chat = llm.configured, llm.chat
