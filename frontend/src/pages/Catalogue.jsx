@@ -4,6 +4,12 @@ import { Button, Card, SectionTitle, ShopContext, inr } from "../ui.jsx";
 
 const SEASON_COLOR = { diwali: "bg-amber-100 text-amber-800", navratri: "bg-fuchsia-100 text-fuchsia-800", eid: "bg-emerald-100 text-emerald-800",
   pongal: "bg-orange-100 text-orange-800", christmas: "bg-red-100 text-red-800" };
+function Thumb({ v, grad }) {
+  const [broken, setBroken] = useState(false);   // no link or dead link -> gradient tile
+  if (v.image_urls?.[0] && !broken) return <img src={v.image_urls[0]} alt={v.title} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="h-20 w-16 shrink-0 rounded-xl object-cover" />;
+  return <div className={`flex h-20 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${grad} text-xs font-semibold text-white/90`}>{v.category}</div>;
+}
+
 const TILE = ["from-plum to-plum-3", "from-gold to-warn", "from-plum-2 to-gold", "from-plum-3 to-plum"];
 
 // The synced store: listings with how complete their size information is, and what returned. Plus personal return links for orders.
@@ -56,7 +62,7 @@ export default function Catalogue() {
           <div className="grid gap-3 md:grid-cols-2">
             {list.map((v, i) => (
               <Card key={v.sku} className={`flex gap-3 p-3 ${v.missing_measurements && v.size_returns ? "border-warn/40" : ""}`}>
-                <div className={`flex h-20 w-16 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${TILE[i % TILE.length]} text-xs font-semibold text-white/90`}>{v.category}</div>
+                <Thumb v={v} grad={TILE[i % TILE.length]} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2"><p className="truncate font-semibold">{v.title}</p><p className="num font-semibold">{inr(v.price_inr)}</p></div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">

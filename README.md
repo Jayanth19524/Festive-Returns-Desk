@@ -80,3 +80,6 @@ Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_r
 
 ## AI assistance disclosure
 This project was built with **Claude Code** (Anthropic's AI coding assistant) working with the author. Claude Code wrote and edited the code, scripts and docs under the author's direction and ran the tests described here; the author is responsible for the result. Sponsor APIs were checked against their official documentation. The product's refund decisions are made by deterministic code, not by an LLM.
+
+## Demo product images
+Eleven demo listings show product photos that are **hotlinked** (not downloaded or redistributed) from the shops that host them: elanstore.in, Myntra, Etsy, Saira's Boutique, bindyaa.com, arabicattire.com, arrssilks.com, keraloom.in, princenprincess.in, ramrajcotton.in. Credit to those shops; used for a hackathon demo only. A dead or blocked link falls back to a gradient tile, as do the listings without a link.

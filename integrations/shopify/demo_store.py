@@ -40,6 +40,20 @@ PRODUCTS = [
 FIRST = ["Aarav", "Meera", "Kavya", "Rohan", "Anita", "Divya", "Imran", "Hetal", "Suresh", "Priya", "Neha", "Vikram", "Sana", "Farah", "Lakshmi",
          "Arjun", "Isha", "Karthik", "Zoya", "Pooja", "Nikhil", "Deepa", "Rahul", "Ananya", "Mohan", "Tara", "Yash", "Riya", "Kabir", "Sneha"]
 LAST = ["Patel", "Shah", "Rao", "Desai", "Khan", "Mehta", "Iyer", "Nair", "Reddy", "Joshi", "Sharma", "Gupta", "Kulkarni", "Naidu", "Pillai"]
+# Product photos hotlinked (not downloaded) from the shops that host them; demo only. SKUs not listed keep a gradient tile.
+IMAGES = {
+    "KUR-102": "https://elanstore.in/cdn/shop/files/Radianceemeraldgreenkurtaset-1_1200x1200.jpg?v=1767634859",
+    "DUP-020": "https://assets.myntassets.com/h_200%2Cw_200%2Cc_fill%2Cg_auto/h_1440%2Cq_75%2Cw_1080/v1/assets/images/2025/SEPTEMBER/14/ww6XBIIK_cff826b3cbf7484887b5e0c4e5a67de9.jpg",
+    "SHR-405": "https://i.etsystatic.com/41419909/r/il/184f74/6711086280/il_fullxfull.6711086280_dtp5.jpg",
+    "SHA-310": "https://cdn.shopify.com/s/files/1/1105/1322/products/LightPinkDesignerEmbroideredPartyWearGhararaSuit_1_-Saira_sBoutique.jpg?v=1631336756",
+    "ANA-301": "https://bindyaa.com/cdn/shop/files/5583_1500x1500_a45bbd58-7ad0-4df4-a1be-f96d24cab592.webp?v=1740266529&width=533",
+    "ABA-220": "https://www.arabicattire.com/cdn/shop/products/NHF590_1_1200x1200.jpg?v=1643987393",
+    "KUR-210": "https://cdn.shopify.com/s/files/1/0605/2770/6169/products/184A7391.jpg?v=1674888683",
+    "SAR-501": "https://arrssilks.com/cdn/shop/files/Gemini_Generated_Image_nh4z0nnh4z0nnh4z.png?v=1780903499&width=1400",
+    "SAR-507": "https://keraloom.in/cdn/shop/products/KPLYHLKS3A.jpg?v=1701769426&width=1445",
+    "PAV-520": "https://princenprincess.in/cdn/shop/products/kids-red-big-border-traditional-pattu-pavadai-ppp1104prince-n-princess-3326460.jpg?v=1769596510&width=1600",
+    "VES-510": "https://ramrajcotton.in/cdn/shop/files/5_017416a3-ef2d-4a0f-8946-d08c3bc0a874_1.jpg?v=1731919538",
+}
 NO_MEAS = {p[0] for p in PRODUCTS if p[6] is None}
 REPEAT_CUSTOMERS = 3  # customers who already returned 3 times this month (for the repeat-returner demo)
 
@@ -57,7 +71,7 @@ def build(now=None, seed=11):
         body = f"<p>{title} for the {season.title()} season. Handcrafted festive wear. {meas or ''}</p>"
         raw_products.append({
             "id": 9000 + i, "title": title, "product_type": ptype, "body_html": body,
-            "tags": f"festive, ethnic, season:{season}", "images": [{"id": 800 + i, "src": f"https://picsum.photos/seed/{sku}/300/400"}],
+            "tags": f"festive, ethnic, season:{season}", "images": [{"id": 800 + i, "src": IMAGES[sku]}] if sku in IMAGES else [],
             "options": [{"name": "Size", "values": sizes}],
             "variants": [{"id": 700 + i, "sku": sku, "title": sizes[0], "price": f"{price}.00", "option1": sizes[0]}],
         })

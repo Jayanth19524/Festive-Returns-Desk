@@ -357,7 +357,7 @@ def _listings(c):
     out = {}
     for p in c.execute("SELECT * FROM products"):
         meas = json.loads(p["measurements"] or "{}")
-        out[p["sku"]] = {"sku": p["sku"], "title": p["title"], "season": p["season"], "category": p["category"], "price_inr": p["price_inr"],
+        out[p["sku"]] = {"sku": p["sku"], "title": p["title"], "season": p["season"], "category": p["category"], "image_urls": json.loads(p["image_urls"] or "[]"), "price_inr": p["price_inr"],
                          "sizes": json.loads(p["sizes"] or "[]"), "measurements": meas, "missing_measurements": not meas,
                          "orders": 0, "returns": 0, "reasons": {}}
     by_order = {r["order_id"]: r["reason_category"] for r in c.execute("SELECT order_id, reason_category FROM cases WHERE status!='seed_history'")}
@@ -465,7 +465,8 @@ def storefront_products():
         for k in ("sizes", "measurements"):
             d[k] = json.loads(d.get(k) or ("[]" if k == "sizes" else "{}"))
         out.append({"sku": d["sku"], "title": d["title"], "category": d["category"], "season": d["season"], "price_inr": d["price_inr"],
-                    "sizes": d["sizes"], "measurements": d["measurements"], "description": d["description"]})
+                    "sizes": d["sizes"], "measurements": d["measurements"], "description": d["description"],
+                    "image_url": (json.loads(d.get("image_urls") or "[]") or [None])[0]})
     return out
 
 

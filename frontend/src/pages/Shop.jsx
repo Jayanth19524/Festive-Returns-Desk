@@ -34,10 +34,12 @@ export function StoreShell({ children, season }) {
 
 function Tile({ p, big }) {
   const [name, icon, grad] = SEASON[p.season] || ["Festive", "✨", "from-plum to-plum-3"];
+  const [broken, setBroken] = useState(false);   // dead or blocked link -> show the gradient tile
   return (
     <div className={`relative flex ${big ? "h-80" : "h-52"} items-end overflow-hidden rounded-2xl bg-gradient-to-br ${grad} p-3 text-white`}>
-      <span className="absolute right-3 top-2 text-4xl opacity-90">{icon}</span>
-      <span className="rounded-full bg-black/25 px-2.5 py-0.5 text-xs font-semibold">{name}</span>
+      {p.image_url && !broken && <img src={p.image_url} alt={p.title} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="absolute inset-0 h-full w-full object-cover" />}
+      {!(p.image_url && !broken) && <span className="absolute right-3 top-2 text-4xl opacity-90">{icon}</span>}
+      <span className="relative rounded-full bg-black/40 px-2.5 py-0.5 text-xs font-semibold">{name}</span>
     </div>
   );
 }
