@@ -80,11 +80,12 @@ class T(unittest.TestCase):
             made = [live._order_for(c, s) for s in skus]
         self.assertEqual(len(made), len(skus)); self.assertTrue(all(m.startswith("SHP-") for m in made))
         cases.create_case({"order_id": made[0], "reason_category": "wrong_size", "claimed_condition": "unworn"}, "t", "en-IN")
-        d = TestClient(app).get(f"/api/products/{skus[0]}/returns").json()
-        kinds = {x["kind"] for x in d["items"]}
-        self.assertIn("imported history", kinds)
-        imported = [x for x in d["items"] if x["kind"] == "imported history"]
-        self.assertTrue(all(not x["nudgebee_ran"] for x in imported))       # imported history never claims a workflow run
+        client = TestClient(app)
+        all_items = [x for sku in skus for x in client.get(f"/api/products/{sku}/returns").json()["items"]]
+        imported = [x for x in all_items if x["kind"] == "imported history"]
+        self.assertTrue(imported)                                              # the demo store has a returns history
+        self.assertTrue(all(not x["nudgebee_ran"] for x in imported))         # imported history never claims a workflow run
+        self.assertTrue(any(x["kind"] == "live run" for x in all_items))
         self.assertEqual(TestClient(app).get("/api/products/NOPE/returns").status_code, 404)
 
 if __name__ == "__main__": unittest.main()
