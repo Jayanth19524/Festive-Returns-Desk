@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import usePoll from "../usePoll.js";
-import { Button, Card, SectionTitle, inr } from "../ui.jsx";
+import { Button, Card, SectionTitle, ShopContext, inr } from "../ui.jsx";
 
 const SEASON_COLOR = { diwali: "bg-amber-100 text-amber-800", navratri: "bg-fuchsia-100 text-fuchsia-800", eid: "bg-emerald-100 text-emerald-800",
   pongal: "bg-orange-100 text-orange-800", christmas: "bg-red-100 text-red-800" };
@@ -10,9 +10,15 @@ const TILE = ["from-plum to-plum-3", "from-gold to-warn", "from-plum-2 to-gold",
 export default function Catalogue() {
   const { data } = usePoll("/api/catalogue", 4000);
   const { data: orders } = usePoll("/api/orders?limit=12", 6000);
+  const shop = useContext(ShopContext);
   const [season, setSeason] = useState("all");
   const [msg, setMsg] = useState("");
-  const sync = async () => { setMsg("Syncing…"); const r = await fetch("/api/demo/shopify-sync", { method: "POST" }); setMsg(r.ok ? "Synced from the simulated Shopify store." : "Sync failed"); };
+  const sync = async () => {
+    setMsg("Syncing…");
+    const r = await fetch(shop.shopify_configured ? "/api/shopify/sync" : "/api/demo/shopify-sync", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    setMsg(r.ok ? (shop.shopify_configured ? "Synced from your Shopify store." : "Loaded the demo store.") : (j.detail || "Sync failed"));
+  };
   const link = (id) => `${location.origin}/#/customer/${id}`;
   const copy = (id) => navigator.clipboard?.writeText(link(id)).then(() => setMsg(`Copied return link for ${id}`));
 
@@ -24,15 +30,15 @@ export default function Catalogue() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="display text-3xl font-semibold text-plum">Store catalogue</h1>
-          <p className="text-muted">Listings synced from your Shopify store, and which ones are causing returns.</p>
+          <p className="text-muted">{shop.data_source === "live" ? `Listings synced from ${shop.store}` : "Demo store data"}, and which ones are causing returns.</p>
         </div>
-        <Button kind="primary" onClick={sync}>⟳ Sync Shopify (simulated store)</Button>
+        <Button kind="primary" onClick={sync}>{shop.shopify_configured ? "⟳ Sync my Shopify store" : "⟳ Load demo store"}</Button>
       </div>
       {msg && <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm text-warn">{msg}</p>}
 
       {!data.total ? (
         <Card className="p-8 text-center"><p className="display text-xl text-plum">No store connected yet</p>
-          <p className="mt-1 text-muted">Press “Sync Shopify” to load the simulated festive boutique: 27 listings, 150 orders and a returns history.</p></Card>
+          <p className="mt-1 text-muted">Connect your Shopify store (see integrations/shopify/README.md), or press the button to load the demo festive boutique.</p></Card>
       ) : (
         <>
           <div className="grid grid-cols-3 gap-3">

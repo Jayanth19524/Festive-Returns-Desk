@@ -104,7 +104,7 @@ def execute(cid: int, action: str, by: str = "nudgebee-workflow") -> dict:
             c.execute("INSERT INTO refunds (case_id,amount_inr,issued_at,issued_by) VALUES (?,?,?,?)",
                       (cid, case["order"]["amount_inr"], db.now(), by))
             c.execute("UPDATE cases SET status='approved_refunded' WHERE id=?", (cid,))
-            db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger by {by} (simulated payout)")
+            db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger by {by} (recorded in the ledger, not paid out)")
             return {"ok": True, "status": "approved_refunded"}
         if action in ("hold", "reject"):
             status = "held" if action == "hold" else "rejected"
@@ -162,7 +162,7 @@ def owner_decide(cid: int, action: str, signed: bool = False) -> dict:
         c.execute("INSERT INTO refunds (case_id,amount_inr,issued_at,issued_by) VALUES (?,?,?,?)",
                   (cid, case["order"]["amount_inr"], db.now(), "owner (Touch ID)" if signed else "owner"))
         c.execute("UPDATE cases SET status='approved_refunded' WHERE id=?", (cid,))
-        db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger, approved by owner{' with Touch ID' if signed else ''} (simulated payout)")
+        db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger, approved by owner{' with Touch ID' if signed else ''} (recorded in the ledger, not paid out)")
         return {"ok": True, "status": "approved_refunded"}
 
 

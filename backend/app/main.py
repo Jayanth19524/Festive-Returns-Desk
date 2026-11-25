@@ -42,7 +42,10 @@ def health():
 @app.get("/api/shop")
 def shop():
     """Which festive season this shop is currently handling returns for (set FESTIVE_SEASON in .env)."""
-    return {"season": os.getenv("FESTIVE_SEASON", "Navratri / Garba season")}
+    live = db.get_meta("data_source") == "live"
+    return {"season": os.getenv("FESTIVE_SEASON", "Navratri / Garba season"),
+            "data_source": "live" if live else "demo", "store": db.get_meta("store_domain") if live else None,
+            "shopify_configured": bool(os.getenv("SHOPIFY_SHOP_DOMAIN") and os.getenv("SHOPIFY_ACCESS_TOKEN"))}
 
 
 @app.get("/api/config")
@@ -401,7 +404,7 @@ def insights():
             "size_return_rate_pct": {"without_measurements": rate(miss), "with_measurements": rate(have)},
             "fix_first": [{"sku": v["sku"], "title": v["title"], "season": v["season"], "orders": v["orders"], "size_returns": v["size_returns"],
                            "return_rate_pct": v["return_rate_pct"]} for v in fix[:8]],
-            "note": "Historical baseline on simulated data: wrong-size returns per order, listings without vs with garment measurements."}
+            "note": "Historical baseline: wrong-size returns per order, listings without vs with garment measurements."}
     return out
 
 
@@ -423,6 +426,21 @@ def one_order(oid: str):
     if not r:
         raise HTTPException(404, "order not found")
     return dict(r)
+
+
+@app.post("/api/shopify/sync", dependencies=[Depends(demo_only)])
+def live_shopify_sync():
+    """Pull products and orders from the connected Shopify store (SHOPIFY_SHOP_DOMAIN / SHOPIFY_ACCESS_TOKEN in .env). Local only."""
+    from integrations.shopify.sync import run_sync
+    if not (os.getenv("SHOPIFY_SHOP_DOMAIN") and os.getenv("SHOPIFY_ACCESS_TOKEN")):
+        raise HTTPException(400, "No Shopify store connected: set SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN in .env")
+    try:
+        res = run_sync(source="shopify", dest="db")
+    except Exception as e:
+        raise HTTPException(502, f"Shopify sync failed: {str(e)[:300]}")
+    db.set_meta("data_source", "live")
+    db.set_meta("store_domain", os.getenv("SHOPIFY_SHOP_DOMAIN", ""))
+    return res
 
 
 @app.post("/api/demo/shopify-sync", dependencies=[Depends(demo_only)])

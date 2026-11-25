@@ -5,7 +5,7 @@ import { Button, inr } from "./ui.jsx";
 const post = (u, b) => fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: b && JSON.stringify(b) }).then(async (r) => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
 const SCEN = [["clean", "Clean return"], ["worn", "Worn once (garba)"], ["bridal", "₹14,500 bridal lehenga"], ["injection", "Prompt injection"], ["repeat", "Repeat returner"], ["expired", "Past 15 days"]];
 
-// Floating demo controls: file simulated returns and flip Flagsmith values without leaving the app (local only).
+// Floating demo controls: file test returns and flip Flagsmith values without leaving the app (local only).
 export default function DemoPanel() {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -19,7 +19,7 @@ export default function DemoPanel() {
       {open && (
         <div className="pop mb-2 max-h-[80vh] w-80 overflow-y-auto rounded-2xl border border-line bg-paper p-4 shadow-2xl">
           <p className="display text-lg font-semibold text-plum">Demo controls</p>
-          <p className="mb-3 text-xs text-muted">Simulated data. Local only.</p>
+          <p className="mb-3 text-xs text-muted">For presenting. Local only.</p>
 
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">A customer files a return</p>
           <div className="mt-1 grid grid-cols-2 gap-1.5">
@@ -42,7 +42,8 @@ export default function DemoPanel() {
 
           <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Data</p>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Sync Shopify (simulated)", () => post("/api/demo/shopify-sync"))}>Sync Shopify store</Button>
+            <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Sync your Shopify store", () => post("/api/shopify/sync"))}>Sync my Shopify store</Button>
+            <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Load demo data", () => post("/api/demo/shopify-sync"))}>Load demo data</Button>
             <Button className="!px-2 !py-1.5 text-xs" onClick={() => go("Reset data", () => post("/api/demo/reset"))}>Reset demo data</Button>
           </div>
           {note && <p className="mt-3 rounded-lg bg-ivory p-2 text-xs text-muted">{note}</p>}

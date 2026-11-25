@@ -1,4 +1,6 @@
 // Small shared pieces: money, badges, cards, sponsor tags. Everything visual lives in index.css tokens.
+import { createContext } from "react";
+export const ShopContext = createContext({});
 export const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 
 const DECISION = {

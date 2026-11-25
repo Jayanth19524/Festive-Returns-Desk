@@ -1,8 +1,10 @@
+import { useContext } from "react";
 import usePoll from "../usePoll.js";
-import { Card, SectionTitle, inr } from "../ui.jsx";
+import { Card, SectionTitle, ShopContext, inr } from "../ui.jsx";
 
 // Return Intelligence: why customers return, how much is preventable, and what to fix first. All from our own database.
 export default function Insights({ compact = false }) {
+  const shop = useContext(ShopContext);
   const { data: ins } = usePoll("/api/insights", 5000);
   if (!ins) return <p className="text-muted">Loading…</p>;
   if (!ins.total_returns) {
@@ -45,7 +47,7 @@ export default function Insights({ compact = false }) {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted">{ins.listings.note} A baseline to measure against, not a claim that any return was prevented.</p>
+          <p className="mt-3 text-xs text-muted">{ins.listings.note} A baseline to measure against, not a claim that any return was prevented.{shop.data_source !== "live" ? " Demo data." : ""}</p>
         </Card>
       )}
       {!compact && (
@@ -56,7 +58,7 @@ export default function Insights({ compact = false }) {
               <div key={i.item} className="flex justify-between py-2"><span>{i.item}</span><span className="text-muted">{i.count} returns · mostly {i.main_reason.replaceAll("_", " ")}</span></div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-muted">Simulated data. “Preventable” counts size and description returns; it is a baseline to measure against, not a claim that any return was prevented.</p>
+          <p className="mt-3 text-xs text-muted">“Preventable” counts size and description returns; it is a baseline to measure against, not a claim that any return was prevented.</p>
         </Card>
       )}
     </div>

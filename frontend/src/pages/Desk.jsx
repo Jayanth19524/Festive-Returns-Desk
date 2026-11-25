@@ -79,7 +79,7 @@ export default function Desk({ selected }) {
                 <p className="mt-2 text-xs text-muted">Flagsmith values at that moment: auto-refund ≤ {inr(cur.flags_in_effect?.cfg?.auto_refund_limit_inr)}, Touch ID above {inr(cur.flags_in_effect?.cfg?.hold_above_inr)}, refunds {cur.flags_in_effect?.cfg?.refunds_enabled ? "on" : "frozen"}.</p>
               </div>
 
-              {cur.refund && <p className="mt-4 rounded-xl bg-ok-bg p-3 text-sm font-semibold text-ok">Refunded {inr(cur.refund.amount_inr)} · {cur.refund.issued_by} (simulated ledger)</p>}
+              {cur.refund && <p className="mt-4 rounded-xl bg-ok-bg p-3 text-sm font-semibold text-ok">Refunded {inr(cur.refund.amount_inr)} · {cur.refund.issued_by} (recorded in the ledger, not paid out)</p>}
 
               {cur.status === "held" && (
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">

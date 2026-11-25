@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Festive Returns Desk",
+  "version": "0.1.0",
+  "description": "Adds a 'Start a return' button to your Shopify store and a live Returns Desk badge to your Shopify admin.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:8200/*", "https://*.myshopify.com/*", "https://admin.shopify.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Festive Returns Desk", "default_popup": "popup.html" },
+  "content_scripts": [
+    { "matches": ["https://*.myshopify.com/*", "https://admin.shopify.com/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}

@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS cases (
   status TEXT, trace TEXT);          -- awaiting_workflow | approved_refunded | held | rejected | refund_blocked | seed_history
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, at TEXT, step TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS owner_credentials (credential_id TEXT PRIMARY KEY, public_key TEXT, sign_count INTEGER);
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS refunds (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER UNIQUE, amount_inr REAL, issued_at TEXT, issued_by TEXT);
 """
 
@@ -163,6 +164,17 @@ def upsert_orders(c, orders: list[dict]) -> int:
     return count
 
 
+def set_meta(key: str, value: str) -> None:
+    with conn() as c:
+        c.execute("INSERT INTO meta (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+
+
+def get_meta(key: str, default: str = "") -> str:
+    with conn() as c:
+        r = c.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+    return r[0] if r else default
+
+
 def load_demo_store() -> dict:
     """Load the SIMULATED Shopify demo store (listings, orders, a returns history, repeat returners). Idempotent."""
     from integrations.shopify import demo_store
@@ -189,6 +201,7 @@ def load_demo_store() -> dict:
                     at = (datetime.now(timezone.utc) - timedelta(days=d)).isoformat(timespec="seconds")
                     c.execute("INSERT INTO cases (order_id,customer_id,created_at,decision,status,reasons,flags_in_effect) VALUES (?,?,?,?,?,?,?)",
                               (oid, cust, at, "approve", "seed_history", "[]", "{}"))
+    set_meta("data_source", "demo")
     return {"products": np_, "orders": no_, "history_returns_added": added}
 
 

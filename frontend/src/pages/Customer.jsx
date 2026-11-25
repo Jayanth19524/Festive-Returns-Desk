@@ -59,7 +59,7 @@ export default function Customer({ orderId }) {
           <div className="pop space-y-3 border-t border-line bg-ivory px-6 py-5 text-left">
             <div><p className="text-xs font-semibold uppercase tracking-wide text-muted">We heard</p><p className="mt-0.5">{res.transcript}</p></div>
             <div><p className="text-xs font-semibold uppercase tracking-wide text-muted">Our answer</p><p className="display mt-0.5 text-lg font-semibold text-plum">{res.reply_text}</p></div>
-            <div className="flex items-center gap-2"><DecisionBadge d={res.case.decision} /><span className="text-xs text-muted">Case #{res.case.id} · simulated</span></div>
+            <div className="flex items-center gap-2"><DecisionBadge d={res.case.decision} /><span className="text-xs text-muted">Case #{res.case.id}</span></div>
           </div>
         )}
       </Card>

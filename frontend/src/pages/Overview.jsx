@@ -24,7 +24,7 @@ export default function Overview() {
         <Kpi label="Needs your decision" value={st.by_status.held || 0} sub={`${inr(st.held_value_inr)} waiting`} tone="warn" />
         <Kpi label="Handled for you" value={handled} sub={total ? `${Math.round((100 * handled) / total)}% of all returns` : "no returns yet"} tone="ok" />
         <Kpi label="Refunded" value={inr(st.refunded_inr)} sub={`${st.refund_count} refunds`} />
-        <Kpi label="Cases today" value={total} sub="simulated returns" />
+        <Kpi label="Cases today" value={total} sub="returns filed" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">

@@ -9,7 +9,7 @@ const NODES = {
   intake: { x: 232, y: 52, w: 200, h: 52, t: "Intake", s: "FastAPI /api/intake", who: "ours" },
   risk: { x: 232, y: 140, w: 200, h: 64, t: "risk.py", s: "deterministic decision", who: "ours" },
   guard: { x: 232, y: 236, w: 200, h: 56, t: "Callback guard", s: "re-checks decision + freeze", who: "ours" },
-  ledger: { x: 232, y: 322, w: 200, h: 56, t: "Refund ledger", s: "SQLite · simulated payout", who: "ours" },
+  ledger: { x: 232, y: 322, w: 200, h: 56, t: "Refund ledger", s: "SQLite · recorded, not paid", who: "ours" },
   stt: { x: 520, y: 46, w: 128, h: 58, t: "Saaras v4", s: "speech to text", who: "sarvam" },
   llm: { x: 662, y: 46, w: 128, h: 58, t: "Sarvam 105B", s: "text to JSON only", who: "sarvam" },
   tts: { x: 804, y: 46, w: 128, h: 58, t: "Bulbul v4", s: "spoken reply", who: "sarvam" },

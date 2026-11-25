@@ -7,6 +7,7 @@ import Catalogue from "./pages/Catalogue.jsx";
 import Architecture from "./pages/Architecture.jsx";
 import Customer from "./pages/Customer.jsx";
 import DemoPanel from "./DemoPanel.jsx";
+import { ShopContext } from "./ui.jsx";
 
 const NAV = [
   ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["catalogue", "Store catalogue", "▦"], ["insights", "Return intelligence", "◔"],
@@ -22,11 +23,13 @@ export default function App() {
     return () => removeEventListener("hashchange", on);
   }, []);
   const [, route = "", arg] = hash.replace("#", "").split("/");
-  const season = usePoll("/api/shop", 60000).data?.season;
+  const shop = usePoll("/api/shop", 8000).data || {};
+  const season = shop.season;
   const panel = usePoll("/api/panel", 3000).data;
   const frozen = panel && !panel.config.refunds_enabled;
 
   return (
+    <ShopContext.Provider value={shop}>
     <div className="min-h-screen lg:flex">
       <aside className="bg-plum text-ivory lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0">
         <div className="flex items-center justify-between gap-3 px-5 py-4 lg:block lg:py-6">
@@ -54,7 +57,9 @@ export default function App() {
           <span className={`rounded-full px-2.5 py-1 font-semibold ${panel?.live ? "bg-violet-100 text-violet-800" : "bg-bad-bg text-bad"}`}>
             Flagsmith {panel ? (panel.live ? "live" : "NOT live") : "…"}
           </span>
-          <span className="ml-auto rounded-full bg-gold-soft px-2.5 py-1 font-semibold text-warn">Simulated data · no real money</span>
+          <span className="ml-auto rounded-full bg-gold-soft px-2.5 py-1 font-semibold text-warn">
+            {shop.data_source === "live" ? `Connected: ${shop.store} · test mode, refunds are recorded not paid` : "Demo data · no real money"}
+          </span>
         </div>
         <div className="mx-auto max-w-6xl p-4 lg:p-8">
           {route === "" && <Overview />}
@@ -67,5 +72,6 @@ export default function App() {
       </main>
       <DemoPanel />
     </div>
+    </ShopContext.Provider>
   );
 }
