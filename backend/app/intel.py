@@ -71,18 +71,20 @@ def state_of(reason: str, condition: str) -> str:
 def analyse(rows: list[dict], listings: list[dict], total_orders: int) -> dict:
     """rows: one dict per return (reason, condition, decision, amount, customer_id, season, sku, days_ago). listings: from the catalogue."""
     n = len(rows)
-    refunded = [r for r in rows if r["decision"] != "reject"]
+    refunded = [r for r in rows if r["decision"] == "approve"]        # money out (or about to go out)
+    pending = [r for r in rows if r["decision"] == "hold"]             # waiting for the owner: NOT counted as refunded
     loss = [case_loss(r["amount"], state_of(r["reason"], r["condition"])) for r in refunded]
     total_loss = round(sum(x["net_loss"] for x in loss))
     avg_loss = round(total_loss / len(refunded)) if refunded else 0
     out = {"returns": n, "orders": total_orders, "return_rate_pct": round(100 * n / total_orders, 1) if total_orders else 0,
-           "refunded_returns": len(refunded), "refunded_inr": round(sum(x["refund"] for x in loss)), "recovered_inr": round(sum(x["recovered"] for x in loss)),
+           "refunded_returns": len(refunded), "pending_returns": len(pending), "pending_inr": round(sum(r["amount"] for r in pending)), "refunded_inr": round(sum(x["refund"] for x in loss)), "recovered_inr": round(sum(x["recovered"] for x in loss)),
            "fees_inr": round(sum(x["fees"] for x in loss)), "net_loss_inr": total_loss, "avg_loss_per_return_inr": avg_loss, "assumptions": ASSUMPTIONS}
 
     # how to handle: group every return by what should be done with the item
     pb = {}
-    for r, l in zip(refunded, loss):
+    for r in refunded + pending:   # every item that comes back needs handling, whether or not the refund has been paid yet
         d = disposition(r["reason"], r["condition"])
+        l = case_loss(r["amount"], state_of(r["reason"], r["condition"]))
         g = pb.setdefault(d["action"], {"action": d["action"], "label": d["label"], "steps": d["steps"], "count": 0, "value_inr": 0, "recoverable_inr": 0})
         g["count"] += 1; g["value_inr"] += round(r["amount"]); g["recoverable_inr"] += round(l["recovered"])
     out["playbook"] = sorted(pb.values(), key=lambda g: -g["value_inr"])
@@ -97,7 +99,7 @@ def analyse(rows: list[dict], listings: list[dict], total_orders: int) -> dict:
 
     # who returns: repeat customers
     per = {}
-    for r in refunded:
+    for r in refunded + pending:
         per.setdefault(r["customer_id"], []).append(r["amount"])
     rep = [{"customer": c, "returns": len(v), "value_inr": round(sum(v))} for c, v in per.items() if len(v) >= 2]
     out["repeat_returners"] = sorted(rep, key=lambda x: -x["value_inr"])[:5]

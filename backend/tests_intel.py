@@ -41,6 +41,11 @@ class T(unittest.TestCase):
         a = next(x for x in out["actions"] if x["key"] == "measurements")
         self.assertGreater(a["impact_inr"], 0); self.assertEqual(a["skus"], ["M1"])
 
+    def test_held_returns_are_pending_not_refunded(self):
+        out = intel.analyse([row(dec="approve", amt=1000), row(dec="hold", amt=5000), row(dec="reject", amt=700)], [], 10)
+        self.assertEqual((out["refunded_returns"], out["refunded_inr"]), (1, 1000))
+        self.assertEqual((out["pending_returns"], out["pending_inr"]), (1, 5000))
+
     def test_no_action_invented_without_data(self):
         out = intel.analyse([], [], 0)
         self.assertEqual((out["returns"], out["net_loss_inr"], out["actions"]), (0, 0, []))

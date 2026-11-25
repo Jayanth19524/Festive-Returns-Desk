@@ -60,7 +60,7 @@ export default function Customer({ orderId }) {
           {order && (
             <div className="mx-auto mt-3 max-w-xs rounded-xl bg-white/10 p-3 text-left text-sm">
               <p className="text-xs text-gold-soft">Your order {order.id}</p><p className="font-semibold">{order.item}</p>
-              <p className="num text-ivory/80">₹{Number(order.amount_inr).toLocaleString("en-IN")} · delivered {order.delivered_days_ago} days ago</p>
+              <p className="num text-ivory/80">₹{Number(order.amount_inr).toLocaleString("en-IN")} · delivered {order.delivered_days_ago === 1 ? "yesterday" : `${order.delivered_days_ago} days ago`}</p>
             </div>
           )}
           <div className="mt-3 flex flex-wrap justify-center gap-1.5">{LANGS.map((l) => <span key={l} className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs">{l}</span>)}</div>

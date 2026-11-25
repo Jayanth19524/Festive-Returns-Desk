@@ -33,7 +33,7 @@ export default function Insights({ compact = false }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Card className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted">Returns</p><p className="display num mt-1 text-3xl font-semibold text-plum">{it.returns}</p><p className="mt-1 text-xs text-muted">{it.return_rate_pct}% of {it.orders} orders</p></Card>
         <Card className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted">Estimated net loss</p><p className="display num mt-1 text-3xl font-semibold text-bad">{inr(it.net_loss_inr)}</p><p className="mt-1 text-xs text-muted">≈ {inr(it.avg_loss_per_return_inr)} per return</p></Card>
-        <Card className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted">Recovered by resale</p><p className="display num mt-1 text-3xl font-semibold text-ok">{inr(it.recovered_inr)}</p><p className="mt-1 text-xs text-muted">of {inr(it.refunded_inr)} refunded</p></Card>
+        <Card className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted">Recovered by resale</p><p className="display num mt-1 text-3xl font-semibold text-ok">{inr(it.recovered_inr)}</p><p className="mt-1 text-xs text-muted">of {inr(it.refunded_inr)} refunded (incl. past history){it.pending_returns ? `; ${it.pending_returns} waiting (${inr(it.pending_inr)}) not counted` : ""}</p></Card>
         <Card className="p-4"><p className="text-xs font-medium uppercase tracking-wide text-muted">Savings available</p><p className="display num mt-1 text-3xl font-semibold text-plum">{inr(it.actions.reduce((a, x) => a + x.impact_inr, 0))}</p><p className="mt-1 text-xs text-muted">if you do the actions below</p></Card>
       </div>
 

@@ -126,6 +126,8 @@ PHRASES = {"gu-IN": {"wrong_size": "મારો ઓર્ડર {id} છે. �
                     "damaged": "मेरा ऑर्डर {id} है। कपड़ा फटा हुआ आया है।", "changed_mind": "मेरा ऑर्डर {id} है। मुझे पसंद नहीं आया, वापस करना है।"},
            "kn-IN": {"wrong_size": "ನನ್ನ ಆರ್ಡರ್ {id}. ಸೈಜ್ ತಪ್ಪಾಗಿದೆ, ನಾನು ಇದನ್ನು ಧರಿಸಿಲ್ಲ.", "worn_once": "ನನ್ನ ಆರ್ಡರ್ {id}. ನಾನು ಇದನ್ನು ಗರ್ಬಾದಲ್ಲಿ ಒಮ್ಮೆ ಧರಿಸಿದ್ದೆ, ಈಗ ವಾಪಸ್ ಕೊಡಬೇಕು.",
                     "damaged": "ನನ್ನ ಆರ್ಡರ್ {id}. ಬಟ್ಟೆ ಹರಿದು ಬಂದಿದೆ.", "changed_mind": "ನನ್ನ ಆರ್ಡರ್ {id}. ನನಗೆ ಇಷ್ಟವಾಗಲಿಲ್ಲ, ವಾಪಸ್ ಕೊಡಬೇಕು."}}
+TYPED = {"wrong_size": "Order {id}: the size is wrong for me, I have not worn it.", "worn_once": "Order {id}: I wore it once at the festival and want to return it.",
+         "damaged": "Order {id}: the item arrived with a tear.", "changed_mind": "Order {id}: I changed my mind about this one.", "not_as_described": "Order {id}: the colour is different from the photo."}
 COND = {"worn_once": "worn", "damaged": "damaged"}
 # phase name, seconds, number of returns, reason weights, share of repeat returners
 PLAN = [("Normal day", 50, 5, {"wrong_size": 50, "changed_mind": 25, "damaged": 10, "worn_once": 15}, 0.0),
@@ -173,7 +175,7 @@ def _file_inner(order_id, reason, voice_lang=None):
             return cases.create_case(ext, heard, voice_lang, trace)
         except Exception:
             pass   # fall back to a typed return rather than stopping the demo
-    return cases.create_case(fields, "(typed return)", "en-IN")
+    return cases.create_case(fields, TYPED[reason].format(id=order_id), "en-IN")
 
 
 def _run(seed: int):

@@ -67,9 +67,11 @@ export default function Desk({ selected }) {
 
               <div className="mt-4 rounded-xl bg-ivory p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted">What the customer said</p>
-                <p className="mt-1">“{cur.transcript || "(filed without voice)"}”</p>
+                <p className="mt-1">“{cur.transcript && cur.transcript !== "(typed return)" ? cur.transcript : "(no spoken or written statement was recorded)"}”</p>
                 <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-                  <span className="rounded-md bg-orange-100 px-2 py-0.5 font-semibold text-orange-800">understood by Sarvam</span>
+                  {cur.trace?.some((t) => t.stage === "stt")
+                    ? <span className="rounded-md bg-orange-100 px-2 py-0.5 font-semibold text-orange-800">heard by Saaras · understood by Sarvam 105B</span>
+                    : <span className="rounded-md bg-line px-2 py-0.5 font-semibold text-muted">{cur.origin === "sim" ? "simulated typed message: no AI read it" : "typed or structured return: no AI read it"}</span>}
                   <span className="rounded-md bg-paper px-2 py-0.5 ring-1 ring-line">reason: {cur.reason_category.replaceAll("_", " ")}</span>
                   <span className="rounded-md bg-paper px-2 py-0.5 ring-1 ring-line">condition: {cur.claimed_condition}</span>
                   <span className="rounded-md bg-paper px-2 py-0.5 ring-1 ring-line">language: {cur.language}</span>
