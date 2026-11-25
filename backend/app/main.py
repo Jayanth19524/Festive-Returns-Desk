@@ -414,7 +414,7 @@ def list_orders(limit: int = 40):
     with db.conn() as c:
         rows = c.execute("SELECT o.id, o.item, o.item_sku, o.amount_inr, o.delivered_days_ago, "
                          "EXISTS(SELECT 1 FROM cases k WHERE k.order_id=o.id AND k.status!='seed_history') AS returned "
-                         "FROM orders o WHERE o.source='shopify' ORDER BY o.delivered_days_ago ASC, o.id LIMIT ?", (limit,)).fetchall()
+                         "FROM orders o WHERE o.source IN ('shopify','demo-store') ORDER BY o.delivered_days_ago ASC, o.id LIMIT ?", (limit,)).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -423,9 +423,51 @@ def one_order(oid: str):
     """What the customer sees after opening their return link: just the item, price and delivery."""
     with db.conn() as c:
         r = c.execute("SELECT id, item, item_sku, amount_inr, delivered_days_ago FROM orders WHERE id=?", (oid.upper(),)).fetchone()
+        k = c.execute("SELECT id, decision, status FROM cases WHERE order_id=? AND status!='seed_history' ORDER BY id DESC LIMIT 1", (oid.upper(),)).fetchone()
     if not r:
         raise HTTPException(404, "order not found")
-    return dict(r)
+    out = dict(r)
+    out["return"] = {"case_id": k["id"], "decision": k["decision"], "status": k["status"]} if k else None
+    return out
+
+
+# ---- Demo storefront ("Festive Boutique"): what a shopper sees. Listings come from the same products table the Shopify sync fills. ----
+class OrderIn(BaseModel):
+    sku: str
+    size: str
+    name: str = "Guest"
+
+
+@app.get("/api/storefront/products")
+def storefront_products():
+    """Listings for the demo storefront: only what a shopper should see (no return statistics)."""
+    with db.conn() as c:
+        rows = c.execute("SELECT * FROM products ORDER BY season, price_inr DESC").fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        for k in ("sizes", "measurements"):
+            d[k] = json.loads(d.get(k) or ("[]" if k == "sizes" else "{}"))
+        out.append({"sku": d["sku"], "title": d["title"], "category": d["category"], "season": d["season"], "price_inr": d["price_inr"],
+                    "sizes": d["sizes"], "measurements": d["measurements"], "description": d["description"]})
+    return out
+
+
+@app.post("/api/storefront/orders")
+def storefront_order(body: OrderIn):
+    """Place a demo order (no payment). Price and item come from our database, never from the browser. Delivered the next day so a return can start."""
+    with db.conn() as c:
+        p = c.execute("SELECT sku, title, price_inr, sizes FROM products WHERE sku=?", (body.sku,)).fetchone()
+        if not p:
+            raise HTTPException(404, "no such product")
+        if body.size not in json.loads(p["sizes"] or "[]"):
+            raise HTTPException(400, "pick one of the listed sizes")
+        n = (c.execute("SELECT MAX(CAST(SUBSTR(id, 5) AS INTEGER)) FROM orders WHERE id LIKE 'SHP-%'").fetchone()[0] or 2000) + 1
+        oid, cid = f"SHP-{n}", f"DEMO-C-{n}"
+        c.execute("INSERT INTO customers (id, name) VALUES (?, ?)", (cid, (body.name or "Guest").strip()[:60] or "Guest"))
+        c.execute("INSERT INTO orders (id, customer_id, item, amount_inr, delivered_days_ago, item_sku, delivered_at, source) VALUES (?,?,?,?,?,?,?,?)",
+                  (oid, cid, f"{p['title']} ({body.size})", p["price_inr"], 1, p["sku"], db.now()[:10], "demo-store"))
+    return {"order_id": oid, "item": p["title"], "size": body.size, "amount_inr": p["price_inr"]}
 
 
 @app.post("/api/shopify/sync", dependencies=[Depends(demo_only)])
@@ -499,7 +541,7 @@ def demo_scenario(name: str):
     cond, reason, claimed, words = SCENARIOS[name]
     with db.conn() as c:
         row = c.execute(f"SELECT o.id FROM orders o WHERE {cond} AND o.id NOT IN (SELECT order_id FROM cases WHERE status!='seed_history') "
-                        "ORDER BY CASE WHEN o.source='shopify' THEN 0 ELSE 1 END, o.id LIMIT 1").fetchone()
+                        "ORDER BY CASE WHEN o.source IN ('shopify','demo-store') THEN 0 ELSE 1 END, o.id LIMIT 1").fetchone()
     if not row:
         raise HTTPException(409, "no free simulated order left for this scenario (reset the demo data)")
     text = words.format(id=row[0])

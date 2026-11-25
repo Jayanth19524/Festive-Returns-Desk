@@ -6,12 +6,13 @@ import Insights from "./pages/Insights.jsx";
 import Catalogue from "./pages/Catalogue.jsx";
 import Architecture from "./pages/Architecture.jsx";
 import Customer from "./pages/Customer.jsx";
+import Shop, { MyOrders, Placed, StoreShell } from "./pages/Shop.jsx";
 import DemoPanel from "./DemoPanel.jsx";
 import { ShopContext } from "./ui.jsx";
 
 const NAV = [
   ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["catalogue", "Store catalogue", "▦"], ["insights", "Return intelligence", "◔"],
-  ["architecture", "How it works", "⌘"], ["customer", "Customer view", "☎"],
+  ["architecture", "How it works", "⌘"], ["shop", "Demo store ↗", "🛍"],
 ];
 
 // Hash router: #/ , #/desk/13 , #/insights , #/architecture , #/customer
@@ -22,12 +23,17 @@ export default function App() {
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
-  const [, route = "", arg] = hash.replace("#", "").split("/");
+  const [, route = "", arg, arg2] = hash.replace("#", "").split("/");
   const shop = usePoll("/api/shop", 8000).data || {};
   const season = shop.season;
   const panel = usePoll("/api/panel", 3000).data;
   const frozen = panel && !panel.config.refunds_enabled;
 
+  // The storefront and the customer's return page are what a SHOPPER sees: no owner sidebar.
+  if (route === "shop") {
+    return arg === "orders" ? <MyOrders /> : arg === "placed" ? <Placed id={arg2} /> : <Shop sku={arg} />;
+  }
+  if (route === "customer") return <StoreShell season={false}><Customer orderId={arg} /></StoreShell>;
   return (
     <ShopContext.Provider value={shop}>
     <div className="min-h-screen lg:flex">
@@ -67,7 +73,6 @@ export default function App() {
           {route === "catalogue" && <Catalogue />}
           {route === "insights" && <Insights />}
           {route === "architecture" && <Architecture />}
-          {route === "customer" && <Customer orderId={arg} />}
         </div>
       </main>
       <DemoPanel />

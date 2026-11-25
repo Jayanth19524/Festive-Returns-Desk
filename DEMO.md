@@ -5,6 +5,7 @@ API on 8200 (`.venv/bin/uvicorn backend.app.main:app --port 8200`), `cd frontend
 Flagsmith (8000) and NudgeBee (3000) up. Click **Demo controls -> Reset demo data**, then register Touch ID once (Returns desk -> a ₹14,500 case).
 Have NudgeBee's Executions tab and the Flagsmith dashboard open in two other tabs.
 
+0. **The customer's story (60 s, the best opener).** Open **Demo store** (`#/shop`): browse the Navratri collection, open the Bandhani Chaniya Choli, note the size guide (and a listing with *no* measurements), pick a size, **Place demo order**, then **↩ Start a return** and speak the reason in Hindi/Gujarati/Kannada. The order is already known from the link. Then switch to the owner view to see the case.
 1. **Problem (30 s).** Open **How it works**. Read the problem card: one seller, a festival rush, wrong-size / "worn once" / damage returns, regional languages, fraud, and why an AI that decides refunds is dangerous.
 2. **Voice in a regional language (60 s).** **Customer view** -> tap the mic -> say in Gujarati/Hindi/Kannada: "My order is SHP-2002, the size is wrong, I have not worn it." The screen shows what we heard, the decision and plays the spoken reply (Sarvam).
 3. **See where everything is used (60 s).** **How it works** -> pick that case in the live architecture. Press Play: customer -> Saaras STT -> Sarvam 105B -> Flagsmith -> risk.py -> NudgeBee -> callback -> ledger -> Bulbul. Each step shows the sponsor, the milliseconds and what happened. Point at the sponsor cards underneath.

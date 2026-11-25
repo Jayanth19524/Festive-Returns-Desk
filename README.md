@@ -14,6 +14,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Voice intake (Saaras v4 -> Sarvam 105B -> Bulbul v4 Flash) in Gujarati / Hindi / Kannada / English | Works, tested on synthetic audio (see Limitations) |
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Web app (React + Tailwind): command centre, returns desk, return intelligence, live architecture page, customer view, demo controls | Works |
+| Demo storefront "Festive Boutique" (`#/shop`): browse festive listings by season, pick a size, place a demo order (no payment), then start a return from the order | Works. It is our own demo store, NOT Shopify. Listings are the same table a Shopify sync fills |
 | Return Intelligence (why customers return, what to fix, preventable share) | Works: plain database aggregation and fixed advice text, no LLM |
 | NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
 | Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). A real platform-authenticator registration and approval were also run once in the app's browser pane on the author's Mac (₹14,500 case released, ledger shows "owner (Touch ID)") |

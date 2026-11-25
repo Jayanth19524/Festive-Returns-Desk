@@ -31,6 +31,14 @@ export default function Customer({ orderId }) {
     setBusy(false);
   }
 
+  if (order?.return) {
+    return (
+      <div className="mx-auto max-w-sm"><Card className="p-6 text-center">
+        <p className="display text-xl font-semibold text-plum">A return for {order.id} is already {order.return.status === "approved_refunded" ? "approved and refunded" : order.return.status === "rejected" ? "closed" : "in review"}</p>
+        <p className="mt-2 text-sm text-muted">{order.item}</p><a className="mt-4 inline-block text-sm font-semibold text-plum-3" href="#/shop/orders">Back to my orders</a>
+      </Card></div>
+    );
+  }
   return (
     <div className="mx-auto max-w-sm">
       <Card className="overflow-hidden">
