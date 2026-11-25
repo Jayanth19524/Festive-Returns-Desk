@@ -15,7 +15,7 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
 | Owner screen and customer screen (React) | Works |
 | NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
-| Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). **A real Touch ID prompt has not been exercised yet**: do the one-time registration on the owner screen and try it |
+| Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). A real platform-authenticator registration and approval were also run once in the app's browser pane on the author's Mac (₹14,500 case released, ledger shows "owner (Touch ID)") |
 
 ## Sponsors and their roles
 | Sponsor | Role in this app |
@@ -59,7 +59,7 @@ Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_r
 ## Limitations (honest)
 - **Voice accuracy is only lightly tested.** The three test phrases (Gujarati, Hindi, Kannada; `scripts/test_intake.py`) used synthetic Bulbul audio, which is cleaner than real phone audio. All 9 extracted fields were right, but that is 3 samples. Spoken order IDs over noise are the weak spot; unknown IDs are rejected by the rule, not guessed.
 - The LLM can be talked into **extracting** a field wrongly (e.g. "unworn" for a worn item). That can only lower the risk score for a case whose amount is still capped by `auto_refund_limit_inr`; it cannot lift the cap, skip the freeze switch, or approve above the limit. Photos/evidence are not implemented.
-- **Touch ID (WebAuthn):** verified server-side with the `cryptography` package (challenge, origin, rpIdHash, user-verified flag, ES256 signature, counter). Attestation is not checked and the first key registered from the local machine is trusted. Challenges live in memory, so a server restart invalidates pending ones. The relying-party id is `localhost`, so it works on `localhost` only (no tunnel needed; do not use the tunnel URL for the owner screen). Real-hardware behaviour is untested by the author's tooling.
+- **Touch ID (WebAuthn):** verified server-side with the `cryptography` package (challenge, origin, rpIdHash, user-verified flag, ES256 signature, counter). Attestation is not checked and the first key registered from the local machine is trusted. Challenges live in memory, so a server restart invalidates pending ones. The relying-party id is `localhost`, so it works on `localhost` only (no tunnel needed; do not use the tunnel URL for the owner screen). Tested on one Mac only.
 - Spoken replies in Gujarati/Hindi/Kannada are short machine-written sentences. A native speaker should review them.
 - The refund ledger is a database table; nothing is paid out. Flagsmith's freeze is flipped in its dashboard (the owner screen shows it and links there).
 - NudgeBee: the brief's `Inputs.webhook_json` was empty on the tested install; we parse `Inputs.webhook_payload` with a JSONata `data.transform` instead. Its HTTP task refuses private IPs, so a public tunnel (guarded: only `/api/workflow/*` with a Bearer token) is required.
