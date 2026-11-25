@@ -1,6 +1,6 @@
-# Garba Returns Desk
+# Festive Returns Desk
 
-A returns desk for a one-person ethnic-wear seller after Navratri. A customer **speaks** their return reason in
+A returns desk for a one-person seller after a festival rush. The demo scenario is ethnic wear after Navratri and garba season; set `FESTIVE_SEASON` in `.env` (Diwali, Eid, Christmas, Pongal...) and the owner screen shows which season is on. A customer **speaks** their return reason in
 Gujarati, Hindi or Kannada. The app turns it into a structured case, a **deterministic risk rule** decides
 (auto-approve / hold / reject), a **NudgeBee** workflow executes the decision and records every step, and the owner
 tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze. Built for Festive Hacks (WeMakeDevs x WeAreDevelopers India).

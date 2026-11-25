@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the five Garba Returns Desk flags in the self-hosted Flagsmith (idempotent: existing flags are left untouched).
+"""Create the five Festive Returns Desk flags in the self-hosted Flagsmith (idempotent: existing flags are left untouched).
 
 Needs a Master API key (Flagsmith dashboard: Organisation Settings -> API Keys) in FLAGSMITH_ADMIN_KEY.
 That key is only for this one-off setup; the running app uses the server-side environment key.

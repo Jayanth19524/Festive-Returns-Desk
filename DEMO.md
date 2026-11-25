@@ -1,4 +1,4 @@
-# Demo script (about 4 minutes). Everything is SIMULATED.
+# Festive Returns Desk: demo script (about 4 minutes). Everything is SIMULATED.
 
 Setup before: API on 8200, `npm run dev` on 5174, Flagsmith (8000) and NudgeBee (3000) up, tunnel running, `curl -X POST localhost:8200/api/demo/reset`.
 

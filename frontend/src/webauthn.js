@@ -9,7 +9,7 @@ const postJson = (u, b) => fetch(u, { method: "POST", headers: { "Content-Type":
 export async function registerOwnerKey() {
   const { challenge, rp_id } = await getJson("/api/webauthn/register-challenge");
   const cred = await navigator.credentials.create({ publicKey: {
-    rp: { id: rp_id, name: "Garba Returns Desk" },
+    rp: { id: rp_id, name: "Festive Returns Desk" },
     user: { id: new TextEncoder().encode("owner"), name: "owner", displayName: "Shop owner" },
     challenge: unb64u(challenge),
     pubKeyCredParams: [{ type: "public-key", alg: -7 }],  // ES256

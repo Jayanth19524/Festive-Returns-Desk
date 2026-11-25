@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Owner from "./Owner.jsx";
 import Customer from "./Customer.jsx";
+import usePoll from "./usePoll.js";
 
 // Two screens, picked by the URL hash: #/owner (default) and #/customer.
 export default function App() {
@@ -11,10 +12,14 @@ export default function App() {
     return () => removeEventListener("hashchange", on);
   }, []);
   const customer = hash === "#/customer";
+  const season = usePoll("/api/shop", 60000).data?.season;
   return (
     <div className="mx-auto max-w-5xl p-4">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold">Garba Returns Desk</h1>
+        <div>
+          <h1 className="text-xl font-bold">Festive Returns Desk</h1>
+          {season && <p className="text-sm text-orange-700">🪔 Now handling: {season}</p>}
+        </div>
         <nav className="flex gap-2 text-sm">
           <a href="#/owner" className={`rounded px-3 py-1 ${!customer ? "bg-stone-900 text-white" : "bg-stone-200"}`}>Owner</a>
           <a href="#/customer" className={`rounded px-3 py-1 ${customer ? "bg-stone-900 text-white" : "bg-stone-200"}`}>Customer</a>

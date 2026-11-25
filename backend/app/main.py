@@ -1,4 +1,4 @@
-"""FastAPI app for Garba Returns Desk. All data is SIMULATED."""
+"""FastAPI app for Festive Returns Desk. All data is SIMULATED."""
 import base64, hmac, os
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from . import cases, db, flags, languages, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
-app = FastAPI(title="Garba Returns Desk (SIMULATED data)")
+app = FastAPI(title="Festive Returns Desk (SIMULATED data)")
 db.init()
 
 
@@ -30,6 +30,12 @@ class CaseIn(BaseModel):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/shop")
+def shop():
+    """Which festive season this shop is currently handling returns for (set FESTIVE_SEASON in .env)."""
+    return {"season": os.getenv("FESTIVE_SEASON", "Navratri / Garba season")}
 
 
 @app.get("/api/config")
