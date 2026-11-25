@@ -40,19 +40,35 @@ PRODUCTS = [
 FIRST = ["Aarav", "Meera", "Kavya", "Rohan", "Anita", "Divya", "Imran", "Hetal", "Suresh", "Priya", "Neha", "Vikram", "Sana", "Farah", "Lakshmi",
          "Arjun", "Isha", "Karthik", "Zoya", "Pooja", "Nikhil", "Deepa", "Rahul", "Ananya", "Mohan", "Tara", "Yash", "Riya", "Kabir", "Sneha"]
 LAST = ["Patel", "Shah", "Rao", "Desai", "Khan", "Mehta", "Iyer", "Nair", "Reddy", "Joshi", "Sharma", "Gupta", "Kulkarni", "Naidu", "Pillai"]
-# Product photos hotlinked (not downloaded) from the shops that host them; demo only. SKUs not listed keep a gradient tile.
+# Product photos hotlinked (not downloaded) from the shops that host them; demo only. If a link is dead the shop shows a gradient tile.
 IMAGES = {
+    "CHO-515": "https://hatkebride.com/cdn/shop/files/11022_7__cropped.jpg?v=1754424952",
+    "CHO-501": "https://manvansh.com/cdn/shop/files/manvanshtrendsnavratrilehengacholi_11_1800x1800.jpg?v=1752580440",
+    "CHO-508": "https://wholetex.sgp1.cdn.digitaloceanspaces.com/full/navratri-cotton-traditional-mirror-work-kurta-kediya-5364.jpg",
+    "KED-606": "https://www.suratsuit.in/product-img/Kediya-Vol-1-With-Magic-Slub-C-1723890244.jpeg",
+    "KED-601": "https://wholetex.sgp1.cdn.digitaloceanspaces.com/full/navratri-cotton-traditional-mirror-work-kurta-kediya-5364.jpg",
+    "JWL-040": "https://purnjewels.com/cdn/shop/files/1A3A786E-F7B3-4706-8204-8A4E0EF4071C.jpg?v=1757306053",
+    "DUP-030": "https://khatrijamnadas.com/cdn/shop/files/3349-1_1080x.jpg?v=1765538411",
+    "GWN-701": "https://medias.utsavfashion.com/media/catalog/product/cache/1/image/1000x/040ec09b1e35df139433887a97daa66f/e/m/embroidered-velvet-gown-in-maroon-v1-tve1594.jpg",
+    "FUS-710": "https://aurayafashion.com/cdn/shop/files/1-262.jpg?v=1757081557",
+    "SAR-720": "https://www.ethnicplus.in/cdn/shop/files/1010_1.jpg?v=1780773414",
+    "COA-730": "https://laromaniofficial.com/cdn/shop/files/1107Cream-min.jpg?v=1756903931",
+    "LEH-212": "https://img.perniaspopupshop.com/catalog/product/p/r/PREV042518_1.jpg?impolicy=zoomimage",
+    "SHR-405": "https://i.etsystatic.com/41419909/r/il/184f74/6711086280/il_fullxfull.6711086280_dtp5.jpg",
+    "SAR-318": "https://serasilkexports.com/assets/temple-green-gold.png",
+    "LEH-204": "https://kundansbridalcouture.com/cdn/shop/files/Full-length_view_of_a_bride_wearing_a_maroon_bridal_lehenga.png?v=1779021354&width=1200",
+    "SAR-310": "https://thesilkroot.com/cdn/shop/files/IMG-20251128-WA0269.jpg?v=1764318352",
+    "KUR-110": "https://imagescdn.jaypore.com/img/app/product/3/39618810-12626703.jpg",
     "KUR-102": "https://elanstore.in/cdn/shop/files/Radianceemeraldgreenkurtaset-1_1200x1200.jpg?v=1767634859",
     "DUP-020": "https://assets.myntassets.com/h_200%2Cw_200%2Cc_fill%2Cg_auto/h_1440%2Cq_75%2Cw_1080/v1/assets/images/2025/SEPTEMBER/14/ww6XBIIK_cff826b3cbf7484887b5e0c4e5a67de9.jpg",
-    "SHR-405": "https://i.etsystatic.com/41419909/r/il/184f74/6711086280/il_fullxfull.6711086280_dtp5.jpg",
-    "SHA-310": "https://cdn.shopify.com/s/files/1/1105/1322/products/LightPinkDesignerEmbroideredPartyWearGhararaSuit_1_-Saira_sBoutique.jpg?v=1631336756",
+    "SHA-310": "https://in.kalkifashion.com/cdn/shop/files/baby-pink-zardosi-sharara-suit-with-dupatta-sg298279-1_9d9c4d5a-d2dd-4381-b7ab-6bf0d9602fbc_500x.jpg?v=1774344173",
     "ANA-301": "https://bindyaa.com/cdn/shop/files/5583_1500x1500_a45bbd58-7ad0-4df4-a1be-f96d24cab592.webp?v=1740266529&width=533",
-    "ABA-220": "https://www.arabicattire.com/cdn/shop/products/NHF590_1_1200x1200.jpg?v=1643987393",
+    "ABA-220": "https://www.nazneen.in/image/cache/catalog/1199%20to%201265/NHF1212/MHF1212%20%281%29-1000x1000.JPG",
     "KUR-210": "https://cdn.shopify.com/s/files/1/0605/2770/6169/products/184A7391.jpg?v=1674888683",
     "SAR-501": "https://arrssilks.com/cdn/shop/files/Gemini_Generated_Image_nh4z0nnh4z0nnh4z.png?v=1780903499&width=1400",
-    "SAR-507": "https://keraloom.in/cdn/shop/products/KPLYHLKS3A.jpg?v=1701769426&width=1445",
-    "PAV-520": "https://princenprincess.in/cdn/shop/products/kids-red-big-border-traditional-pattu-pavadai-ppp1104prince-n-princess-3326460.jpg?v=1769596510&width=1600",
-    "VES-510": "https://ramrajcotton.in/cdn/shop/files/5_017416a3-ef2d-4a0f-8946-d08c3bc0a874_1.jpg?v=1731919538",
+    "SAR-507": "https://assets.ajio.com/medias/sys_master/root/20240731/QUxI/66a976586f60443f31daeae7/-473Wx593H-700246425-cream-MODEL.jpg",
+    "PAV-520": "https://chuttipattu.com/cdn/shop/files/CPM_0370_01.jpg?v=1761146933&width=1946",
+    "VES-510": "https://sethukrishna.com/cdn/shop/files/MenFullSleeveWhiteColourShirtandPocketDhotiwithAngavastramSet.jpg?v=1691491823&width=2400",
 }
 NO_MEAS = {p[0] for p in PRODUCTS if p[6] is None}
 REPEAT_CUSTOMERS = 3  # customers who already returned 3 times this month (for the repeat-returner demo)
