@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS cases (
   id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT, customer_id TEXT, created_at TEXT,
   transcript TEXT, language TEXT, reason_category TEXT, claimed_condition TEXT,
   decision TEXT, score REAL, reasons TEXT, flags_in_effect TEXT, signed_approval_required INTEGER,
-  status TEXT);          -- awaiting_workflow | approved_refunded | held | rejected | refund_blocked | seed_history
+  status TEXT, trace TEXT);          -- awaiting_workflow | approved_refunded | held | rejected | refund_blocked | seed_history
 CREATE TABLE IF NOT EXISTS events (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER, at TEXT, step TEXT, detail TEXT);
 CREATE TABLE IF NOT EXISTS owner_credentials (credential_id TEXT PRIMARY KEY, public_key TEXT, sign_count INTEGER);
 CREATE TABLE IF NOT EXISTS refunds (id INTEGER PRIMARY KEY AUTOINCREMENT, case_id INTEGER UNIQUE, amount_inr REAL, issued_at TEXT, issued_by TEXT);
@@ -49,7 +49,7 @@ HISTORY.update(HISTORY_EXTRA)
 
 
 def now():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 def conn():
@@ -67,6 +67,10 @@ def init():
             if col not in existing_cols:
                 c.execute(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
 
+        try:  # older databases were created before the trace column existed
+            c.execute("ALTER TABLE cases ADD COLUMN trace TEXT")
+        except Exception:
+            pass
         if c.execute("SELECT COUNT(*) FROM customers").fetchone()[0]:
             return
         c.executemany("INSERT INTO customers VALUES (?,?)", CUSTOMERS)
@@ -175,7 +179,7 @@ def log_event(c, case_id, step, detail=""):
 
 def row(r):
     d = dict(r)
-    for k in ("reasons", "flags_in_effect"):
+    for k in ("reasons", "flags_in_effect", "trace"):
         if k in d and isinstance(d[k], str):
             d[k] = json.loads(d[k] or "null")
     return d

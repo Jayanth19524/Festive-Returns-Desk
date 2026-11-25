@@ -13,9 +13,13 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
 |---|---|
 | Voice intake (Saaras v4 -> Sarvam 105B -> Bulbul v4 Flash) in Gujarati / Hindi / Kannada / English | Works, tested on synthetic audio (see Limitations) |
 | Risk rule + live Flagsmith thresholds + freeze switch | Works; a Flagsmith edit changes decisions on screen in ~2 s (tested) |
-| Owner screen and customer screen (React) | Works |
+| Web app (React + Tailwind): command centre, returns desk, return intelligence, live architecture page, customer view, demo controls | Works |
+| Return Intelligence (why customers return, what to fix, preventable share) | Works: plain database aggregation and fixed advice text, no LLM |
 | NudgeBee workflow | Works: published, run end to end for approve, hold and reject cases through a guarded public tunnel; runs visible in NudgeBee Executions (`docs/NUDGEBEE.md`) |
 | Touch ID (WebAuthn) approval for refunds above `hold_above_inr` | Built. Server-side verification is tested with a *software* authenticator (18 unit tests + an HTTP run). A real platform-authenticator registration and approval were also run once in the app's browser pane on the author's Mac (₹14,500 case released, ledger shows "owner (Touch ID)") |
+
+## Who it is for
+An **add-on for small sellers' existing stores** (Instagram, WhatsApp, Shopify or their own site), not a standalone shop. It handles the returns side: voice intake, a consistent decision, refund execution and an audit trail, plus Return Intelligence on why customers return. Marketplaces (Amazon, Flipkart, Myntra) run returns and refunds themselves, so this is not for them.
 
 ## Sponsors and their roles
 | Sponsor | Role in this app |
@@ -42,6 +46,8 @@ tunes the thresholds live in **Flagsmith**, including a one-switch refund freeze
    5. callback re-checks the stored decision AND the live freeze flag, then writes the refund ledger
    6. Bulbul v4 Flash speaks the decision back
 ```
+UI pages: **Command centre** (what needs you, rules in effect), **Returns desk** (queue + case detail + Touch ID), **Return intelligence**, **How it works** (problem, solution, a live replay of any real case showing which sponsor ran each step and how long it took), **Customer view** (voice), plus floating **Demo controls**.
+
 Files: `backend/app/` (`risk.py` rule, `flags.py` Flagsmith, `webauthn_owner.py` Touch ID check, `sarvam_service.py`, `cases.py` lifecycle, `db.py` schema + seed, `nudgebee.py` webhook client, `main.py` routes), `frontend/src/` (`Owner.jsx`, `Customer.jsx`), `nudgebee/garba-return-desk.json` (imported as `garba-return-desk-final`), `scripts/`.
 
 ## Setup
@@ -55,6 +61,8 @@ Needs Python 3.11, Node 18+, Docker. Replace paths as needed.
 7. Check services: `python3 scripts/check_services.py`. Tests: `.venv/bin/python -m unittest backend.tests_risk backend.tests_webauthn -v`.
 
 Simulate a returns surge (60 simulated orders, real NudgeBee runs, optional real voice): `.venv/bin/python scripts/simulate_surge.py --n 40 --voice 4`. A 20-return run settled in 19 s (4 auto-approved, 10 held, 6 rejected).
+
+Public tunnel for NudgeBee: `./scripts/tunnel.sh` (quick tunnels drop and get a new address; run it again, no API restart needed).
 
 Change a value live: Flagsmith dashboard (or `python3 scripts/set_flag.py auto_refund_limit_inr 1000`, `python3 scripts/set_flag.py refunds_enabled off`).
 

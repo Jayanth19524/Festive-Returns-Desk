@@ -1,5 +1,6 @@
 """Case lifecycle: create (decide + log) and execute (issue / hold / reject). All rules live in risk.py."""
-import json
+import json, time
+from datetime import datetime
 from . import db, flags, risk, nudgebee
 
 # Spoken replies per decision. Short on purpose. (Machine-written translations: a native speaker should review them.)
@@ -32,10 +33,21 @@ def evaluate(c, case: dict, cfg: dict, exclude_case_id=None) -> dict:
     return risk.decide(case, order, n, already, cfg), order
 
 
-def create_case(case: dict, transcript: str = "", language: str = "hi-IN") -> dict:
+def _ms(t0):
+    return round((time.perf_counter() - t0) * 1000, 1)
+
+
+def create_case(case: dict, transcript: str = "", language: str = "hi-IN", trace: list | None = None) -> dict:
+    """`trace` carries the timed steps that happened before this call (speech-to-text, extraction)."""
+    trace = list(trace or [])
+    t0 = time.perf_counter()
     live = flags.load()
+    trace.append({"stage": "flags", "who": "flagsmith", "ms": _ms(t0), "ok": live["live"], "detail": live["status"], "data": live["cfg"]})
+    t0 = time.perf_counter()
     with db.conn() as c:
         res, order = evaluate(c, case, live["cfg"])
+        trace.append({"stage": "decide", "who": "ours", "ms": _ms(t0), "detail": f"{res['decision']} (score {res['score']:g})",
+                      "data": {"decision": res["decision"], "score": res["score"], "reasons": res["reasons"]}})
         cur = c.execute(
             "INSERT INTO cases (order_id,customer_id,created_at,transcript,language,reason_category,claimed_condition,"
             "decision,score,reasons,flags_in_effect,signed_approval_required,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -46,8 +58,11 @@ def create_case(case: dict, transcript: str = "", language: str = "hi-IN") -> di
         db.log_event(c, cid, "intake", f"fields from speech: {json.dumps(case, ensure_ascii=False)}")
         db.log_event(c, cid, "decision", f"{res['decision']} (score {res['score']:g}); " + "; ".join(res["reasons"]))
         db.log_event(c, cid, "flags_in_effect", json.dumps(live["cfg"]))
+    t0 = time.perf_counter()
     out = nudgebee.dispatch(cid, res, order, language)  # hands execution to the NudgeBee workflow
+    trace.append({"stage": "dispatch", "who": "nudgebee", "ms": _ms(t0), "ok": out["sent"], "detail": out["detail"]})
     with db.conn() as c:
+        c.execute("UPDATE cases SET trace=? WHERE id=?", (json.dumps(trace), cid))
         db.log_event(c, cid, "nudgebee_dispatch", out["detail"])
         if not out["sent"]:
             # No workflow means nothing executes; a held case waits for the owner, others wait for the workflow.
@@ -149,3 +164,66 @@ def owner_decide(cid: int, action: str, signed: bool = False) -> dict:
         c.execute("UPDATE cases SET status='approved_refunded' WHERE id=?", (cid,))
         db.log_event(c, cid, "refund_issued", f"₹{case['order']['amount_inr']:g} recorded in ledger, approved by owner{' with Touch ID' if signed else ''} (simulated payout)")
         return {"ok": True, "status": "approved_refunded"}
+
+
+def add_trace(cid: int, step: dict) -> None:
+    """Append one timed step (used for the spoken reply, which happens after the case exists)."""
+    with db.conn() as c:
+        row = c.execute("SELECT trace FROM cases WHERE id=?", (cid,)).fetchone()
+        steps = json.loads(row[0] or "[]") + [step]
+        c.execute("UPDATE cases SET trace=? WHERE id=?", (json.dumps(steps), cid))
+
+
+def _t(iso):
+    return datetime.fromisoformat(iso).timestamp()
+
+
+def steps(cid: int) -> dict | None:
+    """The case as an ordered list of pipeline steps, for the live architecture page.
+    Timed steps come from the stored trace; the NudgeBee and owner steps come from the event log."""
+    with db.conn() as c:
+        case = get(c, cid)
+    if not case:
+        return None
+    tr = {t["stage"]: t for t in (case["trace"] or [])}
+    ev = case["events"]
+    first = lambda *names: next((e for e in ev if e["step"] in names), None)
+    out = []
+    if "extract" in tr:
+        voice = "stt" in tr
+        out.append({"key": "voice", "who": "customer", "title": "Customer speaks" if voice else "Customer message received", "ms": None,
+                    "detail": "Return reason recorded on the customer screen (up to 30 s)." if voice else "A typed message (no audio) went through the same understanding step."})
+        if voice:
+            out.append({"key": "stt", "who": "sarvam", "title": "Speech to text · Saaras v4", "ms": tr["stt"]["ms"],
+                        "detail": f"Heard ({tr['stt'].get('lang') or '?'}): {case['transcript']}"})
+        out.append({"key": "extract", "who": "sarvam", "title": "Understand · Sarvam 105B", "ms": tr["extract"]["ms"],
+                    "detail": f"Extracted only: order {case['order_id']}, reason {case['reason_category']}, condition {case['claimed_condition']}. Text said: {case['transcript'][:140]}. It cannot decide a refund."})
+    else:
+        out.append({"key": "voice", "who": "customer", "title": "Return filed", "ms": None,
+                    "detail": f"Structured case filed without voice: {case['reason_category']} on {case['order_id']}."})
+    f = tr.get("flags")
+    out.append({"key": "flags", "who": "flagsmith", "title": "Read live rules · Flagsmith", "ms": f["ms"] if f else None,
+                "detail": (f["detail"] + ". Thresholds: " + ", ".join(f"{k}={v}" for k, v in f["data"].items())) if f else ""})
+    d = tr.get("decide")
+    out.append({"key": "decide", "who": "ours", "title": "Decide · risk.py (plain code)", "ms": d["ms"] if d else None,
+                "detail": f"{case['decision'].upper()} (score {case['score']:g}). " + "; ".join(case["reasons"])})
+    dp = tr.get("dispatch")
+    t_dispatch = _t(first("nudgebee_dispatch")["at"]) if first("nudgebee_dispatch") else None
+    out.append({"key": "dispatch", "who": "nudgebee", "title": "Start workflow · NudgeBee webhook", "ms": dp["ms"] if dp else None,
+                "detail": dp["detail"] if dp else ""})
+    v = first("workflow_validate")
+    if v:
+        out.append({"key": "wf_validate", "who": "nudgebee", "title": "Workflow validates · calls back", "ms": round((_t(v["at"]) - t_dispatch) * 1000) if t_dispatch else None,
+                    "detail": "NudgeBee asked our API (Bearer token, via the guarded tunnel): " + v["detail"]})
+    a = next((e for e in ev if e["step"] in ("case_held", "case_rejected", "refund_blocked", "callback_mismatch")
+              or (e["step"] == "refund_issued" and "nudgebee" in e["detail"])), None)
+    if a:
+        out.append({"key": "wf_action", "who": "nudgebee", "title": "Workflow routes · switch + callback",
+                    "ms": round((_t(a["at"]) - t_dispatch) * 1000) if t_dispatch else None, "detail": a["step"].replace("_", " ") + ": " + a["detail"]})
+    o = first("owner_rejected") or next((e for e in reversed(ev) if e["step"] == "refund_issued" and "owner" in e["detail"]), None)
+    if o:
+        out.append({"key": "owner", "who": "owner", "title": "Owner decides" + (" · Touch ID" if "Touch ID" in o["detail"] else ""), "ms": None, "detail": o["detail"]})
+    tt = tr.get("tts")
+    if tt:
+        out.append({"key": "tts", "who": "sarvam", "title": "Spoken reply · Bulbul v4 Flash", "ms": tt["ms"], "detail": tt["detail"]})
+    return {"case_id": cid, "order_id": case["order_id"], "decision": case["decision"], "status": case["status"], "steps": out}

@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
-import Owner from "./Owner.jsx";
-import Customer from "./Customer.jsx";
 import usePoll from "./usePoll.js";
+import Overview from "./pages/Overview.jsx";
+import Desk from "./pages/Desk.jsx";
+import Insights from "./pages/Insights.jsx";
+import Architecture from "./pages/Architecture.jsx";
+import Customer from "./pages/Customer.jsx";
+import DemoPanel from "./DemoPanel.jsx";
 
-// Two screens, picked by the URL hash: #/owner (default) and #/customer.
+const NAV = [
+  ["", "Command centre", "◧"], ["desk", "Returns desk", "☰"], ["insights", "Return intelligence", "◔"],
+  ["architecture", "How it works", "⌘"], ["customer", "Customer view", "☎"],
+];
+
+// Hash router: #/ , #/desk/13 , #/insights , #/architecture , #/customer
 export default function App() {
   const [hash, setHash] = useState(location.hash);
   useEffect(() => {
@@ -11,24 +20,50 @@ export default function App() {
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
-  const customer = hash === "#/customer";
+  const [, route = "", arg] = hash.replace("#", "").split("/");
   const season = usePoll("/api/shop", 60000).data?.season;
+  const panel = usePoll("/api/panel", 3000).data;
+  const frozen = panel && !panel.config.refunds_enabled;
+
   return (
-    <div className="mx-auto max-w-5xl p-4">
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold">Festive Returns Desk</h1>
-          {season && <p className="text-sm text-orange-700">🪔 Now handling: {season}</p>}
+    <div className="min-h-screen lg:flex">
+      <aside className="bg-plum text-ivory lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 lg:block lg:py-6">
+          <div>
+            <p className="display text-xl font-semibold leading-tight">Festive<br className="hidden lg:block" /> Returns Desk</p>
+            {season && <p className="mt-1 text-xs text-gold-soft">🪔 {season}</p>}
+          </div>
         </div>
-        <nav className="flex gap-2 text-sm">
-          <a href="#/owner" className={`rounded px-3 py-1 ${!customer ? "bg-stone-900 text-white" : "bg-stone-200"}`}>Owner</a>
-          <a href="#/customer" className={`rounded px-3 py-1 ${customer ? "bg-stone-900 text-white" : "bg-stone-200"}`}>Customer</a>
+        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:block lg:space-y-1 lg:pb-0">
+          {NAV.map(([r, label, icon]) => (
+            <a key={r} href={`#/${r}`} className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition ${route === r ? "bg-white/15 text-white" : "text-ivory/70 hover:bg-white/10"}`}>
+              <span className="w-4 text-center text-gold">{icon}</span>{label}
+            </a>
+          ))}
         </nav>
-      </header>
-      <p className="mb-4 rounded bg-amber-100 px-3 py-2 text-sm text-amber-900">
-        SIMULATED DATA: every customer, order and refund here is fake seed data. No real money moves.
-      </p>
-      {customer ? <Customer /> : <Owner />}
+        <div className="hidden px-5 pt-6 text-xs text-ivory/60 lg:block">
+          <p className="mb-2 font-semibold uppercase tracking-wide text-ivory/40">Powered by</p>
+          <p>● Sarvam AI · voice + language</p><p>● Flagsmith · live rules</p><p>● NudgeBee · refund workflow</p>
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper/80 px-4 py-2 text-xs backdrop-blur lg:px-8">
+          <span className={`rounded-full px-2.5 py-1 font-semibold ${frozen ? "bg-bad-bg text-bad" : "bg-ok-bg text-ok"}`}>{frozen ? "● Refunds FROZEN" : "● Refunds on"}</span>
+          <span className={`rounded-full px-2.5 py-1 font-semibold ${panel?.live ? "bg-violet-100 text-violet-800" : "bg-bad-bg text-bad"}`}>
+            Flagsmith {panel ? (panel.live ? "live" : "NOT live") : "…"}
+          </span>
+          <span className="ml-auto rounded-full bg-gold-soft px-2.5 py-1 font-semibold text-warn">Simulated data · no real money</span>
+        </div>
+        <div className="mx-auto max-w-6xl p-4 lg:p-8">
+          {route === "" && <Overview />}
+          {route === "desk" && <Desk selected={arg ? Number(arg) : null} />}
+          {route === "insights" && <Insights />}
+          {route === "architecture" && <Architecture />}
+          {route === "customer" && <Customer />}
+        </div>
+      </main>
+      <DemoPanel />
     </div>
   );
 }
