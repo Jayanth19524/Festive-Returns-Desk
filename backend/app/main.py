@@ -135,6 +135,7 @@ def one_case(cid: int):
 
 @app.post("/api/demo/reset")
 def reset():
+    live.stop(); live.SIM.update(running=False, phase="idle", filed=0, total=0, message="")
     db.reset()
     return {"ok": True}
 
