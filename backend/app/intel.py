@@ -19,6 +19,7 @@ PLAYBOOK = {
     "clean_resell": ("Clean and resell as B-grade", ["Inspect for stains and wear", "Dry-clean or steam", "List at a marked-down 'pre-loved' price"]),
     "repair": ("Repair or salvage", ["Photograph the damage", "Repair if the cost is below the resale gain", "Otherwise sell as a remnant or for parts"]),
     "partial_refund": ("Refund minus a wear deduction", ["Explain the no-worn policy politely", "Offer a partial refund or store credit", "Keep the photo as evidence"]),
+    "inspect_first": ("Inspect on arrival before refunding", ["Compare the item with the customer's photo", "Photograph its real condition", "Refund or reject based on what you find"]),
     "review_listing": ("Fix the listing, then restock", ["Check the photo against the real colour and fabric", "Update the description or photos", "Restock once the listing is accurate"]),
 }
 
@@ -26,6 +27,10 @@ PLAYBOOK = {
 def disposition(reason: str, condition: str, photo: dict | None = None) -> dict:
     """Deterministic recommendation for ONE returned item. A photo finding can only make the advice more cautious."""
     worn = condition == "worn" or reason == "worn_once"
+    if (condition == "damaged" or reason == "damaged") and photo and photo.get("status") == "ok" and photo.get("confidence", 0) >= 0.6 \
+            and not photo.get("visible_damage") and photo.get("matches_claim") == "no":
+        label, steps = PLAYBOOK["inspect_first"]   # the photo does not show the claimed damage
+        return {"action": "inspect_first", "label": label, "steps": steps, "recovery_pct": ASSUMPTIONS["recovery_pct"]["unknown"]}
     if photo and photo.get("status") == "ok" and photo.get("confidence", 0) >= 0.6:
         worn = worn or photo.get("signs_of_wear") == "clear"
         if photo.get("visible_damage"):

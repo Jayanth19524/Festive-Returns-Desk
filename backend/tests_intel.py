@@ -27,6 +27,12 @@ class T(unittest.TestCase):
         clean_photo = {"status": "ok", "confidence": 0.9, "signs_of_wear": "none", "visible_damage": False}
         self.assertEqual(intel.disposition("worn_once", "worn", clean_photo)["action"], "partial_refund")   # a clean photo does not undo the customer's own admission
 
+    def test_damage_claim_with_a_clean_photo_means_inspect_first(self):
+        clean = {"status": "ok", "confidence": 0.9, "visible_damage": False, "matches_claim": "no", "signs_of_wear": "none"}
+        self.assertEqual(intel.disposition("damaged", "damaged", clean)["action"], "inspect_first")
+        shows = {**clean, "visible_damage": True, "matches_claim": "yes"}
+        self.assertEqual(intel.disposition("damaged", "damaged", shows)["action"], "repair")
+
     def test_measurement_action_uses_the_observed_gap(self):
         listings = [{"sku": "M1", "season": "diwali", "missing_measurements": True, "orders": 10, "size_returns": 4},
                     {"sku": "H1", "season": "diwali", "missing_measurements": False, "orders": 10, "size_returns": 0}]
