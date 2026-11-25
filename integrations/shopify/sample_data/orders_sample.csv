@@ -1,0 +1,6 @@
+id,customer_id,customer_name,item_sku,item,amount_inr,delivered_at,source
+SHP-1041,SHP-C-71,Aarav Patel (SIMULATED),KUR-102,Royal Emerald Silk Kurta Set (SIMULATED),1899,2026-11-21,shopify
+SHP-1042,SHP-C-72,Pooja Sharma (SIMULATED),LEH-204,Maroon Zari Bridal Lehenga (SIMULATED),6999,2026-11-20,shopify
+SHP-1043,SHP-C-73,Zoya Siddiqui (SIMULATED),ANA-301,Ivory Chikankari Anarkali Gown (SIMULATED),4499,2026-11-19,shopify
+SHP-1044,SHP-C-74,Tariq Mansoor (SIMULATED),SHR-405,Midnight Navy Embroidered Sherwani (SIMULATED),8999,2026-11-23,shopify
+SHP-1045,SHP-C-75,Ananya Iyer (SIMULATED),SAR-501,Kanjivaram Crimson Temple Silk Saree (SIMULATED),5200,2026-10-05,shopify

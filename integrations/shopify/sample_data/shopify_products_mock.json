@@ -1,0 +1,167 @@
+{
+  "products": [
+    {
+      "id": 9001,
+      "title": "Maroon Zari Bridal Lehenga (SIMULATED)",
+      "product_type": "Lehenga",
+      "body_html": "<p>Intricately embroidered velvet lehenga set for festive celebrations. <em>(SIMULATED DEMO ITEM)</em></p>",
+      "tags": "wedding, ethnic, season:diwali, lehenga",
+      "images": [
+        {
+          "id": 801,
+          "src": "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=600&q=80"
+        }
+      ],
+      "options": [
+        {
+          "name": "Size",
+          "values": ["S", "M", "L"]
+        }
+      ],
+      "variants": [
+        {
+          "id": 701,
+          "sku": "LEH-204",
+          "title": "S",
+          "price": "6999.00",
+          "option1": "S"
+        },
+        {
+          "id": 702,
+          "sku": "LEH-204-M",
+          "title": "M",
+          "price": "6999.00",
+          "option1": "M"
+        }
+      ],
+      "measurements": {
+        "waist_cm": 74,
+        "length_cm": 102
+      }
+    },
+    {
+      "id": 9002,
+      "title": "Royal Emerald Silk Kurta Set (SIMULATED)",
+      "product_type": "Kurta",
+      "body_html": "<p>Pure raw silk kurta with churidar pajama for Diwali puja and festivities. <em>(SIMULATED DEMO ITEM)</em></p>",
+      "tags": "festive, puja, season:diwali, kurta",
+      "images": [
+        {
+          "id": 802,
+          "src": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80"
+        }
+      ],
+      "options": [
+        {
+          "name": "Size",
+          "values": ["M", "L", "XL"]
+        }
+      ],
+      "variants": [
+        {
+          "id": 703,
+          "sku": "KUR-102",
+          "title": "M",
+          "price": "1899.00",
+          "option1": "M"
+        }
+      ],
+      "measurements": {
+        "chest_cm": 104,
+        "length_cm": 110
+      }
+    },
+    {
+      "id": 9003,
+      "title": "Ivory Chikankari Anarkali Gown (SIMULATED)",
+      "product_type": "Anarkali",
+      "body_html": "<p>Lucknowi Chikankari georgette anarkali with mukaish embellishments for Eid celebration. <em>(SIMULATED DEMO ITEM)</em></p>",
+      "tags": "eid-collection, ethnic, season:eid, kurta",
+      "images": [
+        {
+          "id": 803,
+          "src": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=600&q=80"
+        }
+      ],
+      "options": [
+        {
+          "name": "Size",
+          "values": ["S", "M", "L", "XL"]
+        }
+      ],
+      "variants": [
+        {
+          "id": 704,
+          "sku": "ANA-301",
+          "title": "L",
+          "price": "4499.00",
+          "option1": "L"
+        }
+      ],
+      "measurements": {
+        "bust_cm": 96
+      }
+    },
+    {
+      "id": 9004,
+      "title": "Midnight Navy Embroidered Sherwani (SIMULATED)",
+      "product_type": "Sherwani",
+      "body_html": "<p>Men's classic embroidered velvet sherwani for Eid and winter wedding celebrations. <em>(SIMULATED DEMO ITEM)</em></p>",
+      "tags": "royal, evening, season:eid, kurta",
+      "images": [
+        {
+          "id": 804,
+          "src": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=600&q=80"
+        }
+      ],
+      "options": [
+        {
+          "name": "Size",
+          "values": ["38", "40", "42", "44"]
+        }
+      ],
+      "variants": [
+        {
+          "id": 705,
+          "sku": "SHR-405",
+          "title": "40",
+          "price": "8999.00",
+          "option1": "40"
+        }
+      ],
+      "measurements": {
+        "chest_cm": 102,
+        "shoulder_cm": 46
+      }
+    },
+    {
+      "id": 9005,
+      "title": "Kanjivaram Crimson Temple Silk Saree (SIMULATED)",
+      "product_type": "Saree",
+      "body_html": "<p>Traditional Kanjivaram pure silk saree with unstitched blouse piece. <em>(SIMULATED DEMO ITEM)</em></p>",
+      "tags": "tradition, wedding, season:pongal, saree",
+      "images": [
+        {
+          "id": 805,
+          "src": "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=600&q=80"
+        }
+      ],
+      "options": [
+        {
+          "name": "Size",
+          "values": ["Free Size"]
+        }
+      ],
+      "variants": [
+        {
+          "id": 706,
+          "sku": "SAR-501",
+          "title": "Free Size",
+          "price": "5200.00",
+          "option1": "Free Size"
+        }
+      ],
+      "measurements": {}
+    }
+  ]
+}

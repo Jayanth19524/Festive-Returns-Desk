@@ -1,0 +1,149 @@
+{
+  "orders": [
+    {
+      "id": 1041,
+      "order_number": 1041,
+      "total_price": "1899.00",
+      "created_at": "2026-11-20T10:00:00Z",
+      "customer": {
+        "id": 71,
+        "first_name": "Aarav",
+        "last_name": "Patel (SIMULATED)"
+      },
+      "line_items": [
+        {
+          "id": 501,
+          "product_id": 9002,
+          "sku": "KUR-102",
+          "title": "Royal Emerald Silk Kurta Set (SIMULATED)",
+          "price": "1899.00",
+          "quantity": 1
+        }
+      ],
+      "fulfillments": [
+        {
+          "id": 301,
+          "status": "success",
+          "created_at": "2026-11-21T12:00:00Z",
+          "updated_at": "2026-11-21T12:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1042,
+      "order_number": 1042,
+      "total_price": "6999.00",
+      "created_at": "2026-11-19T14:30:00Z",
+      "customer": {
+        "id": 72,
+        "first_name": "Pooja",
+        "last_name": "Sharma (SIMULATED)"
+      },
+      "line_items": [
+        {
+          "id": 502,
+          "product_id": 9001,
+          "sku": "LEH-204",
+          "title": "Maroon Zari Bridal Lehenga (SIMULATED)",
+          "price": "6999.00",
+          "quantity": 1
+        }
+      ],
+      "fulfillments": [
+        {
+          "id": 302,
+          "status": "success",
+          "created_at": "2026-11-20T16:00:00Z",
+          "updated_at": "2026-11-20T16:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1043,
+      "order_number": 1043,
+      "total_price": "4499.00",
+      "created_at": "2026-11-18T09:15:00Z",
+      "customer": {
+        "id": 73,
+        "first_name": "Zoya",
+        "last_name": "Siddiqui (SIMULATED)"
+      },
+      "line_items": [
+        {
+          "id": 503,
+          "product_id": 9003,
+          "sku": "ANA-301",
+          "title": "Ivory Chikankari Anarkali Gown (SIMULATED)",
+          "price": "4499.00",
+          "quantity": 1
+        }
+      ],
+      "fulfillments": [
+        {
+          "id": 303,
+          "status": "success",
+          "created_at": "2026-11-19T11:00:00Z",
+          "updated_at": "2026-11-19T11:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1044,
+      "order_number": 1044,
+      "total_price": "8999.00",
+      "created_at": "2026-11-22T17:45:00Z",
+      "customer": {
+        "id": 74,
+        "first_name": "Tariq",
+        "last_name": "Mansoor (SIMULATED)"
+      },
+      "line_items": [
+        {
+          "id": 504,
+          "product_id": 9004,
+          "sku": "SHR-405",
+          "title": "Midnight Navy Embroidered Sherwani (SIMULATED)",
+          "price": "8999.00",
+          "quantity": 1
+        }
+      ],
+      "fulfillments": [
+        {
+          "id": 304,
+          "status": "success",
+          "created_at": "2026-11-23T15:00:00Z",
+          "updated_at": "2026-11-23T15:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1045,
+      "order_number": 1045,
+      "total_price": "5200.00",
+      "created_at": "2026-10-01T08:00:00Z",
+      "customer": {
+        "id": 75,
+        "first_name": "Ananya",
+        "last_name": "Iyer (SIMULATED)"
+      },
+      "line_items": [
+        {
+          "id": 505,
+          "product_id": 9005,
+          "sku": "SAR-501",
+          "title": "Kanjivaram Crimson Temple Silk Saree (SIMULATED)",
+          "price": "5200.00",
+          "quantity": 1
+        }
+      ],
+      "fulfillments": [
+        {
+          "id": 305,
+          "status": "success",
+          "created_at": "2026-10-05T10:00:00Z",
+          "updated_at": "2026-10-05T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}

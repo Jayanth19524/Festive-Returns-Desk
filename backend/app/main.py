@@ -104,6 +104,106 @@ def reset():
     return {"ok": True}
 
 
+# ---- Ingest API for Store Connectors (Shopify, etc.) ----
+def ingest_auth(authorization: str = Header(default="")):
+    token = os.getenv("INGEST_API_TOKEN", "")
+    if not token or not hmac.compare_digest(authorization, f"Bearer {token}"):
+        raise HTTPException(401, "bad or missing ingest token")
+
+
+class IngestCustomer(BaseModel):
+    id: str
+    name: str
+
+    class Config:
+        extra = "forbid"
+
+
+class IngestProduct(BaseModel):
+    sku: str
+    title: str
+    category: str = "other"
+    price_inr: float
+    season: str | None = None
+    image_urls: list[str] = []
+    sizes: list[str] = []
+    measurements: dict[str, float | int] = {}
+    description: str = ""
+    source: str = "shopify"
+
+    class Config:
+        extra = "forbid"
+
+
+class IngestOrder(BaseModel):
+    id: str
+    customer: IngestCustomer
+    item_sku: str | None = None
+    item: str
+    amount_inr: float
+    delivered_at: str | None = None
+    source: str = "shopify"
+
+    class Config:
+        extra = "forbid"
+
+
+class IngestProductsPayload(BaseModel):
+    products: list[IngestProduct]
+
+    class Config:
+        extra = "forbid"
+
+
+class IngestOrdersPayload(BaseModel):
+    orders: list[IngestOrder]
+
+    class Config:
+        extra = "forbid"
+
+
+@app.post("/api/ingest/products", dependencies=[Depends(ingest_auth)])
+def ingest_products(payload: IngestProductsPayload):
+    products_data = [
+        p.model_dump() if hasattr(p, "model_dump") else p.dict()
+        for p in payload.products
+    ]
+    with db.conn() as c:
+        count = db.upsert_products(c, products_data)
+    return {"ok": True, "upserted": count}
+
+
+@app.post("/api/ingest/orders", dependencies=[Depends(ingest_auth)])
+def ingest_orders(payload: IngestOrdersPayload):
+    orders_data = [
+        o.model_dump() if hasattr(o, "model_dump") else o.dict()
+        for o in payload.orders
+    ]
+    with db.conn() as c:
+        count = db.upsert_orders(c, orders_data)
+    return {"ok": True, "upserted": count}
+
+
+@app.get("/api/ingest/products")
+def list_ingested_products(season: str | None = None):
+    with db.conn() as c:
+        if season:
+            rows = c.execute("SELECT * FROM products WHERE season=?", (season,)).fetchall()
+        else:
+            rows = c.execute("SELECT * FROM products").fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            for k in ("image_urls", "sizes", "measurements"):
+                if k in d and isinstance(d[k], str):
+                    try:
+                        d[k] = json.loads(d[k])
+                    except Exception:
+                        pass
+            result.append(d)
+        return result
+
+
 # ---- NudgeBee callback (the only route the public tunnel should expose; Bearer token required) ----
 def workflow_auth(authorization: str = Header(default="")):
     token = os.getenv("WORKFLOW_API_TOKEN", "")

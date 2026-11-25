@@ -7,7 +7,14 @@ DB_PATH = ROOT / os.getenv("DB_PATH", "garba.db")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS customers (id TEXT PRIMARY KEY, name TEXT);
-CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, customer_id TEXT, item TEXT, amount_inr REAL, delivered_days_ago INTEGER);
+CREATE TABLE IF NOT EXISTS orders (
+  id TEXT PRIMARY KEY, customer_id TEXT, item TEXT, amount_inr REAL, delivered_days_ago INTEGER,
+  item_sku TEXT, delivered_at TEXT, source TEXT
+);
+CREATE TABLE IF NOT EXISTS products (
+  sku TEXT PRIMARY KEY, title TEXT, category TEXT, price_inr REAL, season TEXT,
+  image_urls TEXT, sizes TEXT, measurements TEXT, description TEXT, source TEXT
+);
 CREATE TABLE IF NOT EXISTS cases (
   id INTEGER PRIMARY KEY AUTOINCREMENT, order_id TEXT, customer_id TEXT, created_at TEXT,
   transcript TEXT, language TEXT, reason_category TEXT, claimed_condition TEXT,
@@ -54,15 +61,102 @@ def conn():
 def init():
     with conn() as c:
         c.executescript(SCHEMA)
+        # Ensure optional new columns exist if table was already created
+        existing_cols = {r[1] for r in c.execute("PRAGMA table_info(orders)").fetchall()}
+        for col, col_type in [("item_sku", "TEXT"), ("delivered_at", "TEXT"), ("source", "TEXT")]:
+            if col not in existing_cols:
+                c.execute(f"ALTER TABLE orders ADD COLUMN {col} {col_type}")
+
         if c.execute("SELECT COUNT(*) FROM customers").fetchone()[0]:
             return
         c.executemany("INSERT INTO customers VALUES (?,?)", CUSTOMERS)
-        c.executemany("INSERT INTO orders VALUES (?,?,?,?,?)", ORDERS)
+        c.executemany("INSERT INTO orders (id, customer_id, item, amount_inr, delivered_days_ago) VALUES (?,?,?,?,?)", ORDERS)
         for cust, days in HISTORY.items():
             for d in days:
                 at = (datetime.now(timezone.utc) - timedelta(days=d)).isoformat(timespec="seconds")
                 c.execute("INSERT INTO cases (order_id,customer_id,created_at,decision,status,reasons,flags_in_effect) "
                           "VALUES (?,?,?,?,?,?,?)", (f"OLD-{cust}-{d}", cust, at, "approve", "seed_history", "[]", "{}"))
+
+
+def upsert_products(c, products: list[dict]) -> int:
+    """Upsert products by SKU. Idempotent."""
+    count = 0
+    for p in products:
+        c.execute("""
+            INSERT INTO products (sku, title, category, price_inr, season, image_urls, sizes, measurements, description, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(sku) DO UPDATE SET
+                title=excluded.title,
+                category=excluded.category,
+                price_inr=excluded.price_inr,
+                season=excluded.season,
+                image_urls=excluded.image_urls,
+                sizes=excluded.sizes,
+                measurements=excluded.measurements,
+                description=excluded.description,
+                source=excluded.source
+        """, (
+            p["sku"],
+            p.get("title", ""),
+            p.get("category", "other"),
+            float(p.get("price_inr", 0)),
+            p.get("season"),
+            json.dumps(p.get("image_urls") or []),
+            json.dumps(p.get("sizes") or []),
+            json.dumps(p.get("measurements") or {}),
+            p.get("description", ""),
+            p.get("source", "shopify")
+        ))
+        count += 1
+    return count
+
+
+def upsert_orders(c, orders: list[dict]) -> int:
+    """Upsert orders by ID, also upserting customer info. Idempotent."""
+    count = 0
+    today = datetime.now(timezone.utc).date()
+    for o in orders:
+        cust = o.get("customer") or {}
+        cid = cust.get("id") or f"CUST-{o['id']}"
+        cname = cust.get("name", "Simulated customer")
+        c.execute("INSERT INTO customers (id, name) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name",
+                  (cid, cname))
+
+        delivered_at = o.get("delivered_at")
+        delivered_days_ago = o.get("delivered_days_ago")
+        if delivered_days_ago is None:
+            if delivered_at:
+                try:
+                    del_date = datetime.fromisoformat(delivered_at).date()
+                    delivered_days_ago = max(0, (today - del_date).days)
+                except Exception:
+                    delivered_days_ago = 0
+            else:
+                delivered_days_ago = 0
+
+        c.execute("""
+            INSERT INTO orders (id, customer_id, item, amount_inr, delivered_days_ago, item_sku, delivered_at, source)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                customer_id=excluded.customer_id,
+                item=excluded.item,
+                amount_inr=excluded.amount_inr,
+                delivered_days_ago=excluded.delivered_days_ago,
+                item_sku=excluded.item_sku,
+                delivered_at=excluded.delivered_at,
+                source=excluded.source
+        """, (
+            o["id"],
+            cid,
+            o.get("item", ""),
+            float(o.get("amount_inr", 0)),
+            int(delivered_days_ago),
+            o.get("item_sku"),
+            delivered_at,
+            o.get("source", "shopify")
+        ))
+        count += 1
+    return count
 
 
 def reset():
