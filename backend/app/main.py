@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from .config import ROOT
 from pydantic import BaseModel
-from . import bob, cases, db, flagsmith_admin, flags, languages, photo_check, sarvam_service as sv, webauthn_owner
+from . import bob, cases, db, flagsmith_admin, flags, intel, languages, photo_check, sarvam_service as sv, webauthn_owner
 from . import config  # noqa: F401
 
 app = FastAPI(title="Festive Returns Desk")
@@ -421,6 +421,19 @@ def insights():
             "fix_first": [{"sku": v["sku"], "title": v["title"], "season": v["season"], "orders": v["orders"], "size_returns": v["size_returns"],
                            "return_rate_pct": v["return_rate_pct"]} for v in fix[:8]],
             "note": "Historical baseline: wrong-size returns per order, listings without vs with garment measurements."}
+    with db.conn() as c:   # the money view: costs, what to do with each item, ranked actions
+        total_orders = c.execute("SELECT COUNT(*) FROM orders WHERE item_sku IS NOT NULL").fetchone()[0]
+        recs = c.execute("SELECT k.reason_category r, k.claimed_condition cd, k.decision dec, k.customer_id cu, k.created_at at, o.amount_inr amt, o.item_sku sku "
+                         "FROM cases k JOIN orders o ON o.id=k.order_id WHERE k.status!='seed_history'").fetchall()
+    season_of = {v["sku"]: v["season"] for v in listings}
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    irows = []
+    for r in recs:
+        sku = r["sku"] if r["sku"] in season_of else next((k for k in season_of if (r["sku"] or "").startswith(k + "-")), None)
+        irows.append({"reason": r["r"] or "other", "condition": r["cd"] or "unknown", "decision": r["dec"], "amount": r["amt"], "customer_id": r["cu"],
+                      "season": season_of.get(sku), "sku": sku, "days_ago": (now - datetime.fromisoformat(r["at"])).total_seconds() / 86400})
+    out["intel"] = intel.analyse(irows, listings, total_orders)
     return out
 
 
@@ -585,34 +598,44 @@ def case_photo(cid: int):
 
 
 _ai_cache: dict = {}
+_NUM = __import__("re").compile(r"\d[\d,]*\.?\d*")
+
+
+def numbers_in(text: str) -> set:
+    return {m.group(0).replace(",", "").rstrip(".") for m in _NUM.finditer(text)}
 
 
 @app.get("/api/insights/ai")
 def insights_ai():
-    """AI action plan: an IBM Bob model reads our aggregated numbers and writes what the seller should fix first.
-    The numbers shown next to it come from our database; the model may only reference listings that exist, and says nothing about money."""
-    if not bob.configured():
-        return {"configured": False, "message": "Add BOB_API_KEY, BOB_BASE_URL and BOB_MODEL to .env to turn on the AI action plan."}
+    """Owner brief: Sarvam 105B turns OUR computed numbers into plain advice. Guard: any number in its answer that is not in the input is
+    rejected, so the model can explain but cannot invent figures. If it fails or breaks the guard, the page shows our own computed actions only."""
     data = insights()
-    if not data["total_returns"]:
+    it = data.get("intel")
+    if not it or not it["returns"]:
         return {"configured": True, "plan": None, "message": "No returns yet."}
-    slim = {"returns": data["total_returns"], "preventable_pct": data["preventable"]["share_pct"],
-            "reasons": [{"reason": r["reason"], "share_pct": r["share_pct"], "count": r["count"]} for r in data["reasons"][:5]],
-            "listings": {k: data["listings"][k] for k in ("total", "missing_measurements", "size_return_rate_pct")} if "listings" in data else None,
-            "fix_first": [{"sku": f["sku"], "title": f["title"], "size_returns": f["size_returns"], "orders": f["orders"]} for f in data.get("listings", {}).get("fix_first", [])[:6]]}
-    key = hashlib.sha256(json.dumps(slim, sort_keys=True).encode()).hexdigest()
+    facts = {"returns": it["returns"], "return_rate_pct": it["return_rate_pct"], "net_loss_inr": it["net_loss_inr"], "avg_loss_per_return_inr": it["avg_loss_per_return_inr"],
+             "preventable_pct": data["preventable"]["share_pct"],
+             "top_reasons": [{"reason": r["reason"], "share_pct": r["share_pct"]} for r in data["reasons"][:3]],
+             "actions": [{"title": a["title"], "impact_inr": a["impact_inr"], "do": a["do"]} for a in it["actions"][:4]]}
+    key = hashlib.sha256(json.dumps(facts, sort_keys=True).encode()).hexdigest()
     if key in _ai_cache:
         return _ai_cache[key]
-    prompt = ("You advise the owner of a small festive-wear shop on reducing avoidable returns. Using ONLY the JSON below, write a short action plan. "
-              'Return ONLY JSON: {"headline": string (max 18 words), "actions": [{"title": string, "why": string (max 30 words, may cite the given percentages), '
-              '"skus": [string]}]} with 3 to 4 actions. Only use SKUs that appear in the data. Do not invent numbers.\n\n' + json.dumps(slim))
+    prompt = ("You advise the owner of a small festive-wear shop on handling returns and cutting losses. Use ONLY the JSON facts below. "
+              "Write in simple English a busy shop owner can act on today. Do NOT write any number that is not in the JSON. "
+              'Return ONLY JSON: {"headline": string (max 20 words), "this_week": [string, string, string] (concrete steps for the next 7 days, each max 25 words), '
+              '"watch_out": string (one risk to watch, max 25 words)}.\n\nFACTS: ' + json.dumps(facts))
     try:
-        plan = bob.parse_json(bob.chat([{"role": "user", "content": prompt}], max_tokens=600))
-        known = {f["sku"] for f in slim["fix_first"]}
-        acts = [{"title": str(a.get("title", ""))[:90], "why": str(a.get("why", ""))[:240], "skus": [x for x in (a.get("skus") or []) if x in known]}
-                for a in (plan.get("actions") or [])[:4] if isinstance(a, dict)]
-        out = {"configured": True, "model": bob.model_name(), "plan": {"headline": str(plan.get("headline", ""))[:160], "actions": acts}}
+        r = sv.client().chat.completions(model=sv.settings.llm_model, messages=[{"role": "user", "content": prompt}], temperature=0.0,
+                                         reasoning_effort=None, max_tokens=500, response_format={"type": "json_object"})
+        plan = bob.parse_json(r.choices[0].message.content)
+        text = json.dumps(plan, ensure_ascii=False)
+        allowed = numbers_in(json.dumps(facts)) | {str(i) for i in range(0, 11)} | {"7", "30"}
+        bad = sorted(n for n in numbers_in(text) if n not in allowed)
+        if bad:
+            return {"configured": True, "plan": None, "error": f"The AI brief used numbers that are not in our data ({', '.join(bad[:4])}), so it was discarded."}
+        out = {"configured": True, "model": "Sarvam 105B", "plan": {"headline": str(plan.get("headline", ""))[:200],
+               "this_week": [str(x)[:220] for x in (plan.get("this_week") or [])[:3]], "watch_out": str(plan.get("watch_out", ""))[:220]}}
     except Exception as e:
-        return {"configured": True, "plan": None, "error": str(e)[:300]}
+        return {"configured": True, "plan": None, "error": str(e)[:200]}
     _ai_cache[key] = out
     return out

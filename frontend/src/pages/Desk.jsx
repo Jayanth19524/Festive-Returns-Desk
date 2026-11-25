@@ -100,6 +100,13 @@ export default function Desk({ selected }) {
                   </div>
                 </div>
               )}
+              {cur.disposition && cur.status !== "rejected" && (
+                <div className="mt-4 rounded-xl border border-gold/50 bg-gold-soft/40 p-3 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-warn">What to do with the item</p>
+                  <p className="mt-1 font-semibold text-plum">{cur.disposition.label} <span className="num font-normal text-muted">· about {cur.disposition.recovery_pct}% of the price recoverable</span></p>
+                  <ol className="mt-1 list-decimal pl-5 text-muted">{cur.disposition.steps.map((x) => <li key={x}>{x}</li>)}</ol>
+                </div>
+              )}
               {cur.refund && <p className="mt-4 rounded-xl bg-ok-bg p-3 text-sm font-semibold text-ok">Refunded {inr(cur.refund.amount_inr)} · {cur.refund.issued_by} (recorded in the ledger, not paid out)</p>}
 
               {cur.status === "held" && (

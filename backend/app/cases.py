@@ -1,7 +1,7 @@
 """Case lifecycle: create (decide + log) and execute (issue / hold / reject). All rules live in risk.py."""
 import json, time
 from datetime import datetime
-from . import db, flags, risk, nudgebee
+from . import db, flags, intel, nudgebee, risk
 
 # Spoken replies per decision. Short on purpose. (Machine-written translations: a native speaker should review them.)
 REPLIES = {
@@ -80,6 +80,7 @@ def get(c, cid):
     d["events"] = [dict(e) for e in c.execute("SELECT at,step,detail FROM events WHERE case_id=? ORDER BY id", (cid,))]
     o = c.execute("SELECT * FROM orders WHERE id=?", (d["order_id"],)).fetchone()
     d["order"] = dict(o) if o else None
+    d["disposition"] = intel.disposition(d["reason_category"] or "other", d["claimed_condition"] or "unknown", d.get("photo_check"))
     d["refund"] = dict(x) if (x := c.execute("SELECT * FROM refunds WHERE case_id=?", (cid,)).fetchone()) else None
     return d
 
